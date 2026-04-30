@@ -1,0 +1,1798 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LAWMA PSP Fleet Registration Form</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --lawma-green: #006B3F;
+            --lawma-light-green: #0D9944;
+            --lawma-dark-green: #004D2D;
+            --text-dark: #2C3E50;
+            --text-light: #5D6D7B;
+            --bg-light: #F8FBFA;
+            --bg-white: #FFFFFF;
+            --border-color: #D5DBDD;
+            --success-color: #27AE60;
+            --error-color: #E74C3C;
+            --warning-color: #F39C12;
+        }
+
+        html, body {
+            height: 100%;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background-color: var(--bg-light);
+            color: var(--text-dark);
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, var(--lawma-green) 0%, var(--lawma-light-green) 100%);
+            color: white;
+            padding: 2rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+        }
+
+        .logo {
+            width: 60px;
+            height: 60px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1.2rem;
+            flex-shrink: 0;
+        }
+
+        .header-text h1 {
+            font-size: 1.8rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .header-text p {
+            font-size: 0.95rem;
+            opacity: 0.95;
+        }
+
+        .offline-badge {
+            margin-left: auto;
+            background: rgba(255, 255, 255, 0.25);
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .offline-dot {
+            width: 8px;
+            height: 8px;
+            background: #27AE60;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Progress Bar */
+        .progress-container {
+            background: white;
+            padding: 1.5rem 2rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .progress-bar {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .step-indicator {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+        }
+
+        .step {
+            flex: 1;
+            text-align: center;
+            position: relative;
+        }
+
+        .step-number {
+            width: 40px;
+            height: 40px;
+            margin: 0 auto 0.5rem;
+            background: var(--border-color);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            color: var(--text-light);
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .step.active .step-number {
+            background: var(--lawma-green);
+            color: white;
+            box-shadow: 0 4px 12px rgba(0, 107, 63, 0.3);
+        }
+
+        .step.completed .step-number {
+            background: var(--success-color);
+            color: white;
+        }
+
+        .step-name {
+            font-size: 0.8rem;
+            color: var(--text-light);
+            font-weight: 500;
+        }
+
+        .step.active .step-name {
+            color: var(--lawma-green);
+        }
+
+        .progress-line {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            right: -50%;
+            height: 2px;
+            background: var(--border-color);
+            z-index: -1;
+        }
+
+        .step.completed .progress-line {
+            background: var(--success-color);
+        }
+
+        .progress-percentage {
+            font-size: 0.85rem;
+            color: var(--text-light);
+            margin-top: 1rem;
+            text-align: center;
+        }
+
+        /* Main Container */
+        .main {
+            flex: 1;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+        }
+
+        .form-section {
+            display: none;
+        }
+
+        .form-section.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Form Styling */
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: var(--text-dark);
+            font-size: 0.95rem;
+        }
+
+        .required::after {
+            content: " *";
+            color: var(--error-color);
+        }
+
+        input[type="text"],
+        input[type="number"],
+        input[type="date"],
+        input[type="email"],
+        input[type="tel"],
+        select,
+        textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 0.95rem;
+            font-family: inherit;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        input[type="text"]:focus,
+        input[type="number"]:focus,
+        input[type="date"]:focus,
+        input[type="email"]:focus,
+        input[type="tel"]:focus,
+        select:focus,
+        textarea:focus {
+            outline: none;
+            border-color: var(--lawma-green);
+            box-shadow: 0 0 0 3px rgba(0, 107, 63, 0.1);
+        }
+
+        .autocomplete-dropdown {
+            position: absolute;
+            background: white;
+            border: 1px solid var(--border-color);
+            border-top: none;
+            border-radius: 0 0 6px 6px;
+            max-height: 250px;
+            overflow-y: auto;
+            width: 100%;
+            z-index: 1000;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .autocomplete-item {
+            padding: 0.75rem;
+            cursor: pointer;
+            border-bottom: 1px solid var(--border-color);
+            transition: background 0.2s;
+        }
+
+        .autocomplete-item:hover,
+        .autocomplete-item.selected {
+            background: var(--bg-light);
+        }
+
+        .autocomplete-container {
+            position: relative;
+        }
+
+        /* Radio & Checkbox */
+        .radio-group,
+        .checkbox-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .radio-item,
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        input[type="radio"],
+        input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: var(--lawma-green);
+        }
+
+        .radio-item label,
+        .checkbox-item label {
+            margin: 0;
+            font-weight: 400;
+            cursor: pointer;
+        }
+
+        /* Buttons */
+        .button-group {
+            display: flex;
+            gap: 1rem;
+            margin-top: 2rem;
+            justify-content: space-between;
+        }
+
+        button {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-primary {
+            background: var(--lawma-green);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--lawma-dark-green);
+            box-shadow: 0 4px 12px rgba(0, 107, 63, 0.3);
+        }
+
+        .btn-primary:active {
+            transform: scale(0.98);
+        }
+
+        .btn-secondary {
+            background: var(--border-color);
+            color: var(--text-dark);
+        }
+
+        .btn-secondary:hover {
+            background: #C5CBCD;
+        }
+
+        .btn-secondary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-small {
+            padding: 0.5rem 1rem;
+            font-size: 0.85rem;
+        }
+
+        /* Step 1 - PSP Operator Selection */
+        .step-title {
+            font-size: 1.5rem;
+            margin-bottom: 1.5rem;
+            color: var(--lawma-green);
+        }
+
+        .step-description {
+            color: var(--text-light);
+            margin-bottom: 2rem;
+            font-size: 0.95rem;
+        }
+
+        .operator-info {
+            background: var(--bg-light);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 1rem;
+        }
+
+        .info-row {
+            display: flex;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .info-row:last-child {
+            border-bottom: none;
+        }
+
+        .info-label {
+            font-weight: 600;
+            width: 150px;
+            color: var(--text-dark);
+        }
+
+        .info-value {
+            flex: 1;
+            color: var(--text-light);
+        }
+
+        /* Step 2 - Fleet Size */
+        .fleet-summary {
+            background: var(--bg-light);
+            border-left: 4px solid var(--lawma-green);
+            padding: 1.5rem;
+            border-radius: 6px;
+            margin-top: 1.5rem;
+        }
+
+        .fleet-summary strong {
+            color: var(--lawma-green);
+            font-size: 1.2rem;
+        }
+
+        /* Step 3 - Truck Details */
+        .truck-header {
+            background: linear-gradient(135deg, var(--lawma-green), var(--lawma-light-green));
+            color: white;
+            padding: 1rem;
+            border-radius: 8px 8px 0 0;
+            margin-bottom: 0;
+            font-weight: 600;
+        }
+
+        .truck-content {
+            background: white;
+            border: 1px solid var(--border-color);
+            border-radius: 0 0 8px 8px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .form-columns {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+        }
+
+        .form-columns.full {
+            grid-template-columns: 1fr;
+        }
+
+        .photo-upload-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.5rem;
+            margin-top: 2rem;
+            padding-top: 2rem;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .photo-upload-item {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .photo-upload-label {
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: var(--text-dark);
+        }
+
+        .photo-input-wrapper {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .photo-input-wrapper input[type="file"] {
+            display: none;
+        }
+
+        .photo-input-button {
+            display: block;
+            width: 100%;
+            padding: 1rem;
+            background: var(--bg-light);
+            border: 2px dashed var(--border-color);
+            border-radius: 6px;
+            cursor: pointer;
+            text-align: center;
+            color: var(--text-light);
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+
+        .photo-input-button:hover {
+            border-color: var(--lawma-green);
+            background: rgba(0, 107, 63, 0.02);
+        }
+
+        .photo-preview {
+            width: 100%;
+            height: 150px;
+            background: var(--bg-light);
+            border-radius: 6px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .photo-preview img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        /* Step 4 - Review */
+        .review-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1.5rem;
+        }
+
+        .review-table thead {
+            background: var(--lawma-green);
+            color: white;
+        }
+
+        .review-table th,
+        .review-table td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .review-table tbody tr:hover {
+            background: var(--bg-light);
+        }
+
+        .btn-edit {
+            background: var(--warning-color);
+            color: white;
+            padding: 0.4rem 0.8rem;
+            font-size: 0.8rem;
+        }
+
+        .btn-edit:hover {
+            background: #E67E22;
+        }
+
+        /* Step 5 - Confirmation */
+        .confirmation-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .success-icon {
+            width: 80px;
+            height: 80px;
+            background: var(--success-color);
+            border-radius: 50%;
+            margin: 0 auto 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 2.5rem;
+        }
+
+        .confirmation-header h2 {
+            color: var(--lawma-green);
+            margin-bottom: 0.5rem;
+        }
+
+        .truck-qr-container {
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            background: var(--bg-light);
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            align-items: start;
+        }
+
+        .truck-qr-info {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .truck-qr-info strong {
+            color: var(--lawma-green);
+            font-size: 1.1rem;
+        }
+
+        .qr-code-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: white;
+            border-radius: 8px;
+            padding: 1rem;
+        }
+
+        .qr-code-container canvas {
+            border: 2px solid var(--border-color);
+            border-radius: 6px;
+        }
+
+        /* Error Messages */
+        .error-message {
+            background: #FEE;
+            border: 1px solid var(--error-color);
+            color: var(--error-color);
+            padding: 0.75rem;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+            display: none;
+        }
+
+        .error-message.show {
+            display: block;
+        }
+
+        /* Success Messages */
+        .success-message {
+            background: #EFE;
+            border: 1px solid var(--success-color);
+            color: var(--success-color);
+            padding: 0.75rem;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+            display: none;
+        }
+
+        .success-message.show {
+            display: block;
+        }
+
+        /* Save Progress Indicator */
+        .save-indicator {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background: white;
+            padding: 1rem;
+            border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            font-size: 0.85rem;
+            display: none;
+            align-items: center;
+            gap: 0.75rem;
+            z-index: 100;
+        }
+
+        .save-indicator.show {
+            display: flex;
+        }
+
+        .save-indicator-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--success-color);
+            border-radius: 50%;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .main {
+                padding: 1rem;
+            }
+
+            .container {
+                padding: 1.5rem;
+            }
+
+            .form-columns {
+                grid-template-columns: 1fr;
+            }
+
+            .photo-upload-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .truck-qr-container {
+                grid-template-columns: 1fr;
+            }
+
+            .button-group {
+                flex-direction: column;
+            }
+
+            button {
+                width: 100%;
+            }
+
+            .header-content {
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .offline-badge {
+                margin-left: 0;
+            }
+
+            .review-table {
+                font-size: 0.9rem;
+            }
+
+            .review-table th,
+            .review-table td {
+                padding: 0.75rem 0.5rem;
+            }
+
+            .step-indicator {
+                gap: 0.25rem;
+            }
+
+            .step-name {
+                font-size: 0.7rem;
+            }
+
+            .info-label {
+                width: 120px;
+                font-size: 0.9rem;
+            }
+
+            .info-value {
+                font-size: 0.9rem;
+            }
+        }
+
+        /* Autocomplete positioning fix */
+        .form-group.autocomplete-form-group {
+            position: relative;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <div class="header-content">
+            <div class="logo">
+                <span>LAWMA</span>
+            </div>
+            <div class="header-text">
+                <h1>Lagos Waste Management Authority</h1>
+                <p>Fleet Revalidation & Digital Coding System</p>
+            </div>
+            <div class="offline-badge">
+                <span class="offline-dot"></span>
+                <span>Offline Ready</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Progress Bar -->
+    <div class="progress-container">
+        <div class="progress-bar">
+            <div class="step-indicator">
+                <div class="step active" data-step="1">
+                    <div class="step-number">1</div>
+                    <div class="step-name">PSP Operator</div>
+                    <div class="progress-line"></div>
+                </div>
+                <div class="step" data-step="2">
+                    <div class="step-number">2</div>
+                    <div class="step-name">Fleet Size</div>
+                    <div class="progress-line"></div>
+                </div>
+                <div class="step" data-step="3">
+                    <div class="step-number">3</div>
+                    <div class="step-name">Truck Details</div>
+                    <div class="progress-line"></div>
+                </div>
+                <div class="step" data-step="4">
+                    <div class="step-number">4</div>
+                    <div class="step-name">Review</div>
+                    <div class="progress-line"></div>
+                </div>
+                <div class="step" data-step="5">
+                    <div class="step-number">5</div>
+                    <div class="step-name">Confirmation</div>
+                </div>
+            </div>
+            <div class="progress-percentage">
+                Step <span id="current-step">1</span> of 5
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main">
+        <div class="container">
+            <!-- Step 1: PSP Operator Selection -->
+            <div class="form-section active" data-section="1">
+                <h2 class="step-title">PSP Operator Selection</h2>
+                <p class="step-description">Select your PSP operator to populate company details and assigned LGA</p>
+
+                <div class="error-message" id="error-step1"></div>
+
+                <div class="form-group autocomplete-form-group">
+                    <label for="psp-operator" class="required">PSP Operator</label>
+                    <input
+                        type="text"
+                        id="psp-operator"
+                        placeholder="Search and select your PSP operator..."
+                        autocomplete="off"
+                    >
+                    <div class="autocomplete-dropdown" id="operator-dropdown" style="display: none;"></div>
+                </div>
+
+                <div id="operator-info" style="display: none;">
+                    <div class="operator-info">
+                        <div class="info-row">
+                            <div class="info-label">Company Name:</div>
+                            <div class="info-value" id="info-company"></div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-label">Assigned LGA:</div>
+                            <div class="info-value" id="info-lga"></div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-label">Zone:</div>
+                            <div class="info-value" id="info-zone"></div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-label">Contact Person:</div>
+                            <div class="info-value" id="info-contact"></div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-label">Phone:</div>
+                            <div class="info-value" id="info-phone"></div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-label">Email:</div>
+                            <div class="info-value" id="info-email"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="button-group">
+                    <button class="btn-secondary" disabled>Previous</button>
+                    <button class="btn-primary" id="btn-step1-next">Next</button>
+                </div>
+            </div>
+
+            <!-- Step 2: Fleet Size Declaration -->
+            <div class="form-section" data-section="2">
+                <h2 class="step-title">Fleet Size Declaration</h2>
+                <p class="step-description">Specify the total number of trucks in your fleet</p>
+
+                <div class="error-message" id="error-step2"></div>
+
+                <div class="form-group">
+                    <label for="fleet-size" class="required">How many trucks do you operate?</label>
+                    <input
+                        type="number"
+                        id="fleet-size"
+                        min="1"
+                        max="50"
+                        placeholder="Enter number between 1-50"
+                    >
+                </div>
+
+                <div id="fleet-summary" class="fleet-summary" style="display: none;">
+                    <p>You will now register details for <strong id="truck-count"></strong> truck(s)</p>
+                </div>
+
+                <div class="button-group">
+                    <button class="btn-secondary" id="btn-step2-prev">Previous</button>
+                    <button class="btn-primary" id="btn-step2-next">Next</button>
+                </div>
+            </div>
+
+            <!-- Step 3: Truck Details -->
+            <div class="form-section" data-section="3">
+                <h2 class="step-title">Truck Details</h2>
+                <p class="step-description" id="truck-description"></p>
+
+                <div class="error-message" id="error-step3"></div>
+
+                <div id="truck-form-container"></div>
+
+                <div class="button-group">
+                    <button class="btn-secondary" id="btn-step3-prev">Previous</button>
+                    <button class="btn-primary" id="btn-step3-next">Save & Next Truck</button>
+                </div>
+            </div>
+
+            <!-- Step 4: Review & Submit -->
+            <div class="form-section" data-section="4">
+                <h2 class="step-title">Review & Submit</h2>
+                <p class="step-description">Review all truck details before submitting your registration</p>
+
+                <div class="error-message" id="error-step4"></div>
+
+                <table class="review-table">
+                    <thead>
+                        <tr>
+                            <th>Truck #</th>
+                            <th>Registration #</th>
+                            <th>Make & Model</th>
+                            <th>Type</th>
+                            <th>Year</th>
+                            <th>Status</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="review-table-body"></tbody>
+                </table>
+
+                <div class="button-group">
+                    <button class="btn-secondary" id="btn-step4-prev">Previous</button>
+                    <button class="btn-primary" id="btn-step4-submit">Submit Registration</button>
+                </div>
+            </div>
+
+            <!-- Step 5: Confirmation & QR Codes -->
+            <div class="form-section" data-section="5">
+                <div class="confirmation-header">
+                    <div class="success-icon">✓</div>
+                    <h2>Registration Submitted Successfully</h2>
+                    <p>All your truck details have been recorded and unique IDs generated</p>
+                </div>
+
+                <div id="qr-codes-container"></div>
+
+                <div class="button-group">
+                    <button class="btn-primary" id="btn-download-qr">Download All QR Codes</button>
+                    <button class="btn-primary" id="btn-print-summary">Print Registration Summary</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Save Progress Indicator -->
+    <div class="save-indicator" id="save-indicator">
+        <span class="save-indicator-dot"></span>
+        <span>Data saved in memory</span>
+    </div>
+
+    <script>
+        // Service Worker Registration Stub (for offline capability in production)
+        if ('serviceWorker' in navigator) {
+            // In production, implement a service worker for offline functionality
+            // navigator.serviceWorker.register('sw.js');
+            console.log('Service Worker stub: Ready for offline implementation');
+        }
+
+        // Sample PSP Operators Data
+        const pspOperators = [
+            { id: 1, name: 'Visionscape Sanitation Solutions', lga: 'Alimosho', zone: 'Zone A', contact: 'Mr. Aminu Yusuf', phone: '08012345678', email: 'aminu@visionscape.com' },
+            { id: 2, name: 'WestAfrika Cleaning Services', lga: 'Surulere', zone: 'Zone B', contact: 'Mrs. Folake Okafor', phone: '08023456789', email: 'folake@westafrica.com' },
+            { id: 3, name: 'Lagos Waste Mgt Consortium', lga: 'Ikeja', zone: 'Zone A', contact: 'Mr. Adekunle Taiwo', phone: '08034567890', email: 'adekunle@lwmc.com' },
+            { id: 4, name: 'Cleaner Lagos Initiative', lga: 'Lagos Island', zone: 'Zone C', contact: 'Ms. Zainab Mohammed', phone: '08045678901', email: 'zainab@cleanerlagos.com' },
+            { id: 5, name: 'Environmental Solutions Ltd', lga: 'Ikorodu', zone: 'Zone D', contact: 'Mr. Kayode Adeyemi', phone: '08056789012', email: 'kayode@envsol.com' },
+            { id: 6, name: 'Green Valley Waste Systems', lga: 'Epe', zone: 'Zone E', contact: 'Mr. Segun Olanrewaju', phone: '08067890123', email: 'segun@greenvalley.com' },
+            { id: 7, name: 'Metro Waste Management', lga: 'Lagos Mainland', zone: 'Zone C', contact: 'Dr. Emeka Nwankwo', phone: '08078901234', email: 'emeka@metrowaste.com' },
+            { id: 8, name: 'Sustainable Lagos Ltd', lga: 'Oshodi-Isolo', zone: 'Zone B', contact: 'Mr. Ibrahim Hassan', phone: '08089012345', email: 'ibrahim@suslagos.com' },
+            { id: 9, name: 'Eco-Forward Sanitation', lga: 'Mushin', zone: 'Zone A', contact: 'Mrs. Gladys Okafor', phone: '08090123456', email: 'gladys@ecoforward.com' },
+            { id: 10, name: 'Pacific Waste Solutions', lga: 'Apapa', zone: 'Zone C', contact: 'Mr. Chidi Okonkwo', phone: '08001234567', email: 'chidi@pacificwaste.com' },
+            { id: 11, name: 'Urban Cleanup Services', lga: 'Ifako-Ijaiye', zone: 'Zone B', contact: 'Ms. Patricia Ajayi', phone: '08012345670', email: 'patricia@urbanclean.com' },
+            { id: 12, name: 'Fresh Start Waste Mgmt', lga: 'Ajeromi-Ifelodun', zone: 'Zone C', contact: 'Mr. Tunde Adebayo', phone: '08023456780', email: 'tunde@freshstart.com' },
+            { id: 13, name: 'Brightfuture Environmental', lga: 'Badagry', zone: 'Zone D', contact: 'Mr. Yinka Bello', phone: '08034567891', email: 'yinka@brightfuture.com' },
+            { id: 14, name: 'Harmony Waste Solutions', lga: 'Agege', zone: 'Zone A', contact: 'Mrs. Aminat Adeyemi', phone: '08045678902', email: 'aminat@harmonyws.com' },
+            { id: 15, name: 'NextGen Sanitation Ltd', lga: 'Kosofe', zone: 'Zone E', contact: 'Mr. Tosin Makinde', phone: '08056789013', email: 'tosin@nextgen.com' },
+            { id: 16, name: 'Pride Waste Management', lga: 'Shomolu', zone: 'Zone B', contact: 'Ms. Nneka Eze', phone: '08067890124', email: 'nneka@pridewaste.com' },
+            { id: 17, name: 'Future Earth Solutions', lga: 'Ibeju-Lekki', zone: 'Zone E', contact: 'Mr. David Okafor', phone: '08078901235', email: 'david@futureearth.com' },
+            { id: 18, name: 'Pinnacle Sanitation Inc', lga: 'Eti-Osa', zone: 'Zone D', contact: 'Mr. Oluwaseun Obi', phone: '08089012346', email: 'oluwaseun@pinnacle.com' },
+            { id: 19, name: 'Sunrise Waste Systems', lga: 'Ojo', zone: 'Zone D', contact: 'Mrs. Folake Adeniyi', phone: '08090123457', email: 'folake@sunrise.com' },
+            { id: 20, name: 'ProClean Services Ltd', lga: 'Amuwo-Odofin', zone: 'Zone A', contact: 'Mr. Kunle Ajayi', phone: '08001234568', email: 'kunle@proclean.com' },
+            { id: 21, name: 'GreenCare Environmental', lga: 'Alimosho', zone: 'Zone A', contact: 'Ms. Blessing Iwuamadi', phone: '08012345671', email: 'blessing@greencare.com' },
+            { id: 22, name: 'Total Solutions Waste Mgmt', lga: 'Ikeja', zone: 'Zone A', contact: 'Mr. Chisom Okoro', phone: '08023456781', email: 'chisom@totalsolutions.com' },
+            { id: 23, name: 'Premier Sanitation Group', lga: 'Lagos Island', zone: 'Zone C', contact: 'Mr. Jide Oyeyemi', phone: '08034567892', email: 'jide@premier.com' },
+            { id: 24, name: 'Integrated Waste Systems', lga: 'Surulere', zone: 'Zone B', contact: 'Mrs. Rose Okonkwo', phone: '08045678903', email: 'rose@integrated.com' },
+            { id: 25, name: 'EcoPoint Management', lga: 'Mushin', zone: 'Zone A', contact: 'Mr. Adebayo Owolabi', phone: '08056789014', email: 'adebayo@ecopoint.com' },
+            { id: 26, name: 'City Waste Innovations', lga: 'Oshodi-Isolo', zone: 'Zone B', contact: 'Ms. Jumoke Akande', phone: '08067890125', email: 'jumoke@citywaste.com' },
+            { id: 27, name: 'Optimal Waste Solutions', lga: 'Kosofe', zone: 'Zone E', contact: 'Mr. Emeka Nwosu', phone: '08078901236', email: 'emeka@optimal.com' },
+            { id: 28, name: 'Reliable Sanitation Ltd', lga: 'Ikorodu', zone: 'Zone D', contact: 'Mr. Wale Akinleye', phone: '08089012347', email: 'wale@reliable.com' },
+            { id: 29, name: 'Complete Waste Services', lga: 'Epe', zone: 'Zone E', contact: 'Mrs. Zainab Ismail', phone: '08090123458', email: 'zainab@complete.com' },
+            { id: 30, name: 'Advanced Cleaning Systems', lga: 'Lagos Mainland', zone: 'Zone C', contact: 'Mr. Obi Anyanwu', phone: '08001234569', email: 'obi@advanced.com' }
+        ];
+
+        // Application State
+        const state = {
+            currentStep: 1,
+            selectedOperator: null,
+            fleetSize: 0,
+            trucks: [],
+            registrationIds: []
+        };
+
+        // Truck Vehicle Makes and Models
+        const vehicleMakes = [
+            'Howo Sinotruk',
+            'Mercedes Actros',
+            'DAF',
+            'MAN Diesel',
+            'Iveco',
+            'Shacman',
+            'Dongfeng',
+            'Other'
+        ];
+
+        const vehicleTypes = [
+            'Compactor',
+            'Open-back Tipper',
+            'Roll-on/Roll-off',
+            'Side Loader',
+            'Rear Loader',
+            'Skip Truck'
+        ];
+
+        // Initialize Application
+        function init() {
+            setupOperatorAutocomplete();
+            setupEventListeners();
+            showSaveIndicator();
+        }
+
+        // Autocomplete Setup
+        function setupOperatorAutocomplete() {
+            const input = document.getElementById('psp-operator');
+            const dropdown = document.getElementById('operator-dropdown');
+
+            // Show all operators on click/focus
+            input.addEventListener('focus', function() {
+                if (input.value.length === 0) {
+                    showOperatorList(pspOperators);
+                }
+            });
+
+            input.addEventListener('click', function() {
+                if (input.value.length === 0) {
+                    showOperatorList(pspOperators);
+                }
+            });
+
+            function showOperatorList(operators) {
+                dropdown.innerHTML = '';
+                operators.slice(0, 30).forEach(operator => {
+                    const div = document.createElement('div');
+                    div.className = 'autocomplete-item';
+                    div.innerHTML = `<strong>${operator.name}</strong><br><small>${operator.lga} • ${operator.zone}</small>`;
+                    div.addEventListener('click', () => selectOperator(operator));
+                    dropdown.appendChild(div);
+                });
+                dropdown.style.display = 'block';
+            }
+
+            input.addEventListener('input', function(e) {
+                const value = e.target.value.toLowerCase();
+                dropdown.innerHTML = '';
+
+                if (value.length === 0) {
+                    showOperatorList(pspOperators);
+                    return;
+                }
+
+                const filtered = pspOperators.filter(op =>
+                    op.name.toLowerCase().includes(value) ||
+                    op.lga.toLowerCase().includes(value)
+                );
+
+                if (filtered.length === 0) {
+                    dropdown.style.display = 'none';
+                    return;
+                }
+
+                filtered.slice(0, 10).forEach(operator => {
+                    const div = document.createElement('div');
+                    div.className = 'autocomplete-item';
+                    div.innerHTML = `<strong>${operator.name}</strong><br><small>${operator.lga} • ${operator.zone}</small>`;
+                    div.addEventListener('click', () => selectOperator(operator));
+                    dropdown.appendChild(div);
+                });
+
+                dropdown.style.display = 'block';
+            });
+
+            // Close dropdown on outside click
+            document.addEventListener('click', function(e) {
+                if (e.target !== input && e.target !== dropdown) {
+                    dropdown.style.display = 'none';
+                }
+            });
+        }
+
+        // Select Operator
+        function selectOperator(operator) {
+            state.selectedOperator = operator;
+            document.getElementById('psp-operator').value = operator.name;
+            document.getElementById('operator-dropdown').style.display = 'none';
+
+            // Populate info
+            document.getElementById('info-company').textContent = operator.name;
+            document.getElementById('info-lga').textContent = operator.lga;
+            document.getElementById('info-zone').textContent = operator.zone;
+            document.getElementById('info-contact').textContent = operator.contact;
+            document.getElementById('info-phone').textContent = operator.phone;
+            document.getElementById('info-email').textContent = operator.email;
+            document.getElementById('operator-info').style.display = 'block';
+
+            showSaveIndicator();
+        }
+
+        // Event Listeners
+        function setupEventListeners() {
+            // Step 1
+            document.getElementById('btn-step1-next').addEventListener('click', () => {
+                if (!state.selectedOperator) {
+                    showError('error-step1', 'Please select a PSP operator');
+                    return;
+                }
+                goToStep(2);
+            });
+
+            // Step 2
+            document.getElementById('fleet-size').addEventListener('input', function(e) {
+                const size = parseInt(e.target.value);
+                const summary = document.getElementById('fleet-summary');
+                if (size > 0 && size <= 50) {
+                    document.getElementById('truck-count').textContent = size;
+                    summary.style.display = 'block';
+                } else {
+                    summary.style.display = 'none';
+                }
+            });
+
+            document.getElementById('btn-step2-prev').addEventListener('click', () => goToStep(1));
+            document.getElementById('btn-step2-next').addEventListener('click', () => {
+                const size = parseInt(document.getElementById('fleet-size').value);
+                if (!size || size < 1 || size > 50) {
+                    showError('error-step2', 'Please enter a valid number between 1 and 50');
+                    return;
+                }
+                state.fleetSize = size;
+                state.trucks = Array(size).fill(null).map(() => ({}));
+                goToStep(3);
+            });
+
+            // Step 3
+            document.getElementById('btn-step3-prev').addEventListener('click', () => goToStep(2));
+            document.getElementById('btn-step3-next').addEventListener('click', saveTruckAndNext);
+
+            // Step 4
+            document.getElementById('btn-step4-prev').addEventListener('click', () => goToStep(3));
+            document.getElementById('btn-step4-submit').addEventListener('click', submitRegistration);
+
+            // Step 5
+            document.getElementById('btn-download-qr').addEventListener('click', downloadQRCodes);
+            document.getElementById('btn-print-summary').addEventListener('click', printSummary);
+        }
+
+        // Go To Step
+        function goToStep(stepNumber) {
+            if (stepNumber === 3) {
+                renderTruckForm();
+            } else if (stepNumber === 4) {
+                renderReviewTable();
+            } else if (stepNumber === 5) {
+                renderConfirmation();
+            }
+
+            // Update UI
+            state.currentStep = stepNumber;
+            document.querySelectorAll('.form-section').forEach(section => {
+                section.classList.remove('active');
+            });
+            document.querySelector(`[data-section="${stepNumber}"]`).classList.add('active');
+
+            // Update progress indicator
+            document.querySelectorAll('.step').forEach((step, index) => {
+                step.classList.remove('active', 'completed');
+                if (index + 1 < stepNumber) {
+                    step.classList.add('completed');
+                } else if (index + 1 === stepNumber) {
+                    step.classList.add('active');
+                }
+            });
+
+            document.getElementById('current-step').textContent = stepNumber;
+            window.scrollTo(0, 0);
+            showSaveIndicator();
+        }
+
+        // Render Truck Form
+        function renderTruckForm() {
+            const currentTruckIndex = state.trucks.findIndex(t => !t.registrationNumber);
+            if (currentTruckIndex === -1) {
+                goToStep(4);
+                return;
+            }
+
+            const truckNumber = currentTruckIndex + 1;
+            document.getElementById('truck-description').innerHTML =
+                `Truck <strong>${truckNumber} of ${state.fleetSize}</strong> — Enter details for this vehicle`;
+
+            const container = document.getElementById('truck-form-container');
+            container.innerHTML = '';
+
+            // Truck Header
+            const header = document.createElement('div');
+            header.className = 'truck-header';
+            header.textContent = `Truck ${truckNumber} of ${state.fleetSize}`;
+            container.appendChild(header);
+
+            // Truck Content
+            const content = document.createElement('div');
+            content.className = 'truck-content';
+
+            // Basic Info
+            const basicSection = document.createElement('div');
+            basicSection.className = 'form-columns';
+            basicSection.innerHTML = `
+                <div class="form-group">
+                    <label for="reg-number" class="required">Vehicle Registration Number (License Plate)</label>
+                    <input type="text" id="reg-number" placeholder="e.g., LSD 012 LA" value="${state.trucks[currentTruckIndex].registrationNumber || ''}">
+                </div>
+                <div class="form-group">
+                    <label for="vehicle-type" class="required">Vehicle Type</label>
+                    <select id="vehicle-type">
+                        <option value="">Select vehicle type...</option>
+                        ${vehicleTypes.map(t => `<option value="${t}" ${state.trucks[currentTruckIndex].vehicleType === t ? 'selected' : ''}>${t}</option>`).join('')}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="vehicle-make" class="required">Vehicle Make & Model</label>
+                    <select id="vehicle-make">
+                        <option value="">Select make and model...</option>
+                        ${vehicleMakes.map(m => `<option value="${m}" ${state.trucks[currentTruckIndex].vehicleMake === m ? 'selected' : ''}>${m}</option>`).join('')}
+                    </select>
+                </div>
+                <div class="form-group" id="other-make-group" style="display: none;">
+                    <label for="other-make-text">Specify Other Make & Model</label>
+                    <input type="text" id="other-make-text" placeholder="Enter vehicle make and model" value="${state.trucks[currentTruckIndex].vehicleMakeOther || ''}">
+                </div>
+                <div class="form-group">
+                    <label for="year-manufacture" class="required">Year of Manufacture</label>
+                    <select id="year-manufacture">
+                        <option value="">Select year...</option>
+                        ${Array.from({length: 27}, (_, i) => 2000 + i).reverse().map(y => `<option value="${y}" ${state.trucks[currentTruckIndex].yearOfManufacture === y ? 'selected' : ''}>${y}</option>`).join('')}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="vehicle-colour">Vehicle Colour</label>
+                    <input type="text" id="vehicle-colour" placeholder="e.g., White, Blue" value="${state.trucks[currentTruckIndex].vehicleColour || ''}">
+                </div>
+                <div class="form-group">
+                    <label for="chassis-number" class="required">Chassis Number / VIN</label>
+                    <input type="text" id="chassis-number" placeholder="Enter chassis number" value="${state.trucks[currentTruckIndex].chassisNumber || ''}">
+                </div>
+                <div class="form-group">
+                    <label for="engine-number">Engine Number</label>
+                    <input type="text" id="engine-number" placeholder="Enter engine number" value="${state.trucks[currentTruckIndex].engineNumber || ''}">
+                </div>
+            `;
+            content.appendChild(basicSection);
+
+            // Operational Details
+            const operSection = document.createElement('div');
+            operSection.className = 'form-columns';
+            operSection.innerHTML = `
+                <div class="form-group">
+                    <label class="required">Operational Status</label>
+                    <div class="radio-group">
+                        <div class="radio-item">
+                            <input type="radio" id="status-active" name="status" value="Active" ${state.trucks[currentTruckIndex].operationalStatus === 'Active' ? 'checked' : ''}>
+                            <label for="status-active">Active</label>
+                        </div>
+                        <div class="radio-item">
+                            <input type="radio" id="status-repair" name="status" value="Under Repair" ${state.trucks[currentTruckIndex].operationalStatus === 'Under Repair' ? 'checked' : ''}>
+                            <label for="status-repair">Under Repair</label>
+                        </div>
+                        <div class="radio-item">
+                            <input type="radio" id="status-grounded" name="status" value="Grounded" ${state.trucks[currentTruckIndex].operationalStatus === 'Grounded' ? 'checked' : ''}>
+                            <label for="status-grounded">Grounded</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="capacity">Vehicle Capacity (tonnes)</label>
+                    <input type="number" id="capacity" placeholder="e.g., 15" min="1" max="100" value="${state.trucks[currentTruckIndex].capacity || ''}">
+                </div>
+                <div class="form-group">
+                    <label class="required">Vehicle Ownership</label>
+                    <div class="radio-group">
+                        <div class="radio-item">
+                            <input type="radio" id="own-owned" name="ownership" value="Owned" ${state.trucks[currentTruckIndex].ownership === 'Owned' ? 'checked' : ''}>
+                            <label for="own-owned">Owned</label>
+                        </div>
+                        <div class="radio-item">
+                            <input type="radio" id="own-leased" name="ownership" value="Leased" ${state.trucks[currentTruckIndex].ownership === 'Leased' ? 'checked' : ''}>
+                            <label for="own-leased">Leased</label>
+                        </div>
+                        <div class="radio-item">
+                            <input type="radio" id="own-hired" name="ownership" value="Hired" ${state.trucks[currentTruckIndex].ownership === 'Hired' ? 'checked' : ''}>
+                            <label for="own-hired">Hired</label>
+                        </div>
+                    </div>
+                </div>
+            `;
+            content.appendChild(operSection);
+
+            // Compliance Details
+            const complianceSection = document.createElement('div');
+            complianceSection.className = 'form-columns';
+            complianceSection.innerHTML = `
+                <div class="form-group">
+                    <label for="roadworthy-cert">Roadworthiness Certificate Number</label>
+                    <input type="text" id="roadworthy-cert" placeholder="Enter certificate number" value="${state.trucks[currentTruckIndex].roadworthinessCert || ''}">
+                </div>
+                <div class="form-group">
+                    <label for="roadworthy-expiry">Roadworthiness Expiry Date</label>
+                    <input type="date" id="roadworthy-expiry" value="${state.trucks[currentTruckIndex].roadworthinessExpiry || ''}">
+                </div>
+                <div class="form-group">
+                    <label class="required">Insurance Status</label>
+                    <div class="radio-group">
+                        <div class="radio-item">
+                            <input type="radio" id="insur-valid" name="insurance" value="Valid" ${state.trucks[currentTruckIndex].insuranceStatus === 'Valid' ? 'checked' : ''}>
+                            <label for="insur-valid">Valid</label>
+                        </div>
+                        <div class="radio-item">
+                            <input type="radio" id="insur-expired" name="insurance" value="Expired" ${state.trucks[currentTruckIndex].insuranceStatus === 'Expired' ? 'checked' : ''}>
+                            <label for="insur-expired">Expired</label>
+                        </div>
+                        <div class="radio-item">
+                            <input type="radio" id="insur-none" name="insurance" value="None" ${state.trucks[currentTruckIndex].insuranceStatus === 'None' ? 'checked' : ''}>
+                            <label for="insur-none">None</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group" id="insurance-expiry-group" style="display: none;">
+                    <label for="insurance-expiry">Insurance Expiry Date</label>
+                    <input type="date" id="insurance-expiry" value="${state.trucks[currentTruckIndex].insuranceExpiry || ''}">
+                </div>
+            `;
+            content.appendChild(complianceSection);
+
+            // Photo Uploads
+            const photoSection = document.createElement('div');
+            photoSection.innerHTML = `
+                <div class="photo-upload-grid">
+                    ${['Front View', 'Rear View', 'Side View', 'License Plate'].map((view, idx) => `
+                        <div class="photo-upload-item">
+                            <div class="photo-upload-label">${view}</div>
+                            <div class="photo-input-wrapper">
+                                <input type="file" id="photo-${idx}" accept="image/*" class="photo-input">
+                                <button type="button" class="photo-input-button">
+                                    + Upload ${view} Photo
+                                </button>
+                                <div class="photo-preview" id="preview-${idx}"></div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+            content.appendChild(photoSection);
+
+            container.appendChild(content);
+
+            // Event listeners for dynamic fields
+            document.getElementById('vehicle-make').addEventListener('change', function(e) {
+                document.getElementById('other-make-group').style.display =
+                    e.target.value === 'Other' ? 'block' : 'none';
+            });
+
+            document.querySelectorAll('input[name="insurance"]').forEach(radio => {
+                radio.addEventListener('change', function(e) {
+                    document.getElementById('insurance-expiry-group').style.display =
+                        e.target.value === 'Valid' ? 'block' : 'none';
+                });
+            });
+
+            // Photo upload handlers
+            [0, 1, 2, 3].forEach(idx => {
+                const input = document.getElementById(`photo-${idx}`);
+                const button = input.parentElement.querySelector('.photo-input-button');
+                const preview = document.getElementById(`preview-${idx}`);
+
+                button.addEventListener('click', () => input.click());
+
+                input.addEventListener('change', function(e) {
+                    if (e.target.files && e.target.files[0]) {
+                        const reader = new FileReader();
+                        reader.onload = function(event) {
+                            preview.innerHTML = `<img src="${event.target.result}" alt="Preview">`;
+                            state.trucks[currentTruckIndex][`photo${idx}`] = event.target.result;
+                            showSaveIndicator();
+                        };
+                        reader.readAsDataURL(e.target.files[0]);
+                    }
+                });
+            });
+
+            // Show other make field if applicable
+            if (state.trucks[currentTruckIndex].vehicleMake === 'Other') {
+                document.getElementById('other-make-group').style.display = 'block';
+            }
+
+            // Show insurance expiry if applicable
+            if (state.trucks[currentTruckIndex].insuranceStatus === 'Valid') {
+                document.getElementById('insurance-expiry-group').style.display = 'block';
+            }
+        }
+
+        // Save Truck and Next
+        function saveTruckAndNext() {
+            const currentTruckIndex = state.trucks.findIndex(t => !t.registrationNumber);
+            if (currentTruckIndex === -1) {
+                goToStep(4);
+                return;
+            }
+
+            // Validate required fields
+            const regNumber = document.getElementById('reg-number').value.trim();
+            const vehicleType = document.getElementById('vehicle-type').value;
+            const vehicleMake = document.getElementById('vehicle-make').value;
+            const yearMfg = document.getElementById('year-manufacture').value;
+            const chassisNum = document.getElementById('chassis-number').value.trim();
+            const status = document.querySelector('input[name="status"]:checked')?.value;
+            const ownership = document.querySelector('input[name="ownership"]:checked')?.value;
+            const insurance = document.querySelector('input[name="insurance"]:checked')?.value;
+
+            if (!regNumber || !vehicleType || !vehicleMake || !yearMfg || !chassisNum || !status || !ownership || !insurance) {
+                showError('error-step3', 'Please fill in all required fields');
+                return;
+            }
+
+            if (vehicleMake === 'Other' && !document.getElementById('other-make-text').value.trim()) {
+                showError('error-step3', 'Please specify the other make and model');
+                return;
+            }
+
+            // Save truck data
+            state.trucks[currentTruckIndex] = {
+                registrationNumber: regNumber,
+                vehicleType: vehicleType,
+                vehicleMake: vehicleMake,
+                vehicleMakeOther: document.getElementById('other-make-text').value || '',
+                yearOfManufacture: parseInt(yearMfg),
+                vehicleColour: document.getElementById('vehicle-colour').value || '',
+                chassisNumber: chassisNum,
+                engineNumber: document.getElementById('engine-number').value || '',
+                operationalStatus: status,
+                capacity: document.getElementById('capacity').value || '',
+                ownership: ownership,
+                roadworthinessCert: document.getElementById('roadworthy-cert').value || '',
+                roadworthinessExpiry: document.getElementById('roadworthy-expiry').value || '',
+                insuranceStatus: insurance,
+                insuranceExpiry: document.getElementById('insurance-expiry').value || ''
+            };
+
+            clearError('error-step3');
+
+            // Check if all trucks are filled
+            if (state.trucks.every(t => t.registrationNumber)) {
+                goToStep(4);
+            } else {
+                renderTruckForm();
+            }
+
+            showSaveIndicator();
+        }
+
+        // Render Review Table
+        function renderReviewTable() {
+            const tbody = document.getElementById('review-table-body');
+            tbody.innerHTML = '';
+
+            state.trucks.forEach((truck, idx) => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${idx + 1}</td>
+                    <td>${truck.registrationNumber}</td>
+                    <td>${truck.vehicleMake === 'Other' ? truck.vehicleMakeOther : truck.vehicleMake}</td>
+                    <td>${truck.vehicleType}</td>
+                    <td>${truck.yearOfManufacture}</td>
+                    <td><strong>${truck.operationalStatus}</strong></td>
+                    <td>
+                        <button class="btn-edit btn-small" onclick="editTruck(${idx})">Edit</button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        // Edit Truck
+        function editTruck(idx) {
+            const currentTruckIndex = state.trucks.findIndex(t => !t.registrationNumber);
+            if (currentTruckIndex !== -1 && currentTruckIndex !== idx) {
+                // Move the truck to current index
+                [state.trucks[currentTruckIndex], state.trucks[idx]] = [state.trucks[idx], state.trucks[currentTruckIndex]];
+            }
+            goToStep(3);
+        }
+
+        // Submit Registration
+        function submitRegistration() {
+            // Generate unique IDs for each truck
+            state.registrationIds = state.trucks.map((truck, idx) => {
+                const sequential = String(idx + 1).padStart(4, '0');
+                const random = Math.random().toString(36).substring(2, 6).toUpperCase();
+                return `PSP-${sequential}-${random}`;
+            });
+
+            goToStep(5);
+        }
+
+        // Render Confirmation
+        function renderConfirmation() {
+            const container = document.getElementById('qr-codes-container');
+            container.innerHTML = '';
+
+            state.trucks.forEach((truck, idx) => {
+                const uniqueId = state.registrationIds[idx];
+                const truckUrl = `https://fleet.lawma.lg.gov.ng/truck/${uniqueId}`;
+
+                const qrDiv = document.createElement('div');
+                qrDiv.className = 'truck-qr-container';
+
+                const infoDiv = document.createElement('div');
+                infoDiv.className = 'truck-qr-info';
+                infoDiv.innerHTML = `
+                    <strong>Truck ${idx + 1} of ${state.fleetSize}</strong>
+                    <div>Registration: ${truck.registrationNumber}</div>
+                    <div>Make: ${truck.vehicleMake === 'Other' ? truck.vehicleMakeOther : truck.vehicleMake}</div>
+                    <div>Type: ${truck.vehicleType}</div>
+                    <div>Year: ${truck.yearOfManufacture}</div>
+                    <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
+                        <strong style="color: var(--lawma-green); font-size: 1.2rem;">${uniqueId}</strong>
+                        <div style="font-size: 0.8rem; color: var(--text-light); margin-top: 0.25rem; word-break: break-all;">${truckUrl}</div>
+                    </div>
+                    <button onclick="showTruckProfile(${idx})" style="margin-top: 0.75rem; padding: 0.5rem 1rem; background: var(--lawma-green); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 0.85rem;">Preview Scan Result</button>
+                `;
+
+                const qrCanvasDiv = document.createElement('div');
+                qrCanvasDiv.className = 'qr-code-container';
+                qrCanvasDiv.id = `qr-${idx}`;
+
+                qrDiv.appendChild(infoDiv);
+                qrDiv.appendChild(qrCanvasDiv);
+                container.appendChild(qrDiv);
+
+                // Generate QR code with URL
+                new QRCode(document.getElementById(`qr-${idx}`), {
+                    text: truckUrl,
+                    width: 200,
+                    height: 200,
+                    colorDark: '#006B3F',
+                    colorLight: '#ffffff',
+                    correctLevel: QRCode.CorrectLevel.H
+                });
+            });
+        }
+
+        // Show truck profile (simulates what QR scan will show in production)
+        function showTruckProfile(idx) {
+            const truck = state.trucks[idx];
+            const uniqueId = state.registrationIds[idx];
+            const truckUrl = `https://fleet.lawma.lg.gov.ng/truck/${uniqueId}`;
+            const make = truck.vehicleMake === 'Other' ? truck.vehicleMakeOther : truck.vehicleMake;
+
+            const profileWindow = window.open('', '_blank', 'width=420,height=800');
+            profileWindow.document.write(`
+                <html>
+                <head>
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <title>LAWMA Fleet - ${uniqueId}</title>
+                    <style>
+                        * { margin: 0; padding: 0; box-sizing: border-box; }
+                        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #F0F4F3; min-height: 100vh; }
+                        .header { background: linear-gradient(135deg, #006B3F, #0D9944); color: white; padding: 1.25rem; text-align: center; }
+                        .header h1 { font-size: 1rem; margin-bottom: 0.25rem; }
+                        .header p { font-size: 0.8rem; opacity: 0.9; }
+                        .id-banner { background: #004D2D; color: #7DFFB5; text-align: center; padding: 1rem; font-size: 1.5rem; font-weight: bold; letter-spacing: 2px; }
+                        .id-banner small { display: block; font-size: 0.7rem; color: rgba(255,255,255,0.6); font-weight: normal; letter-spacing: 0; margin-top: 0.25rem; }
+                        .status-bar { display: flex; justify-content: center; padding: 0.75rem; gap: 0.5rem; }
+                        .status-badge { padding: 0.35rem 0.75rem; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
+                        .status-active { background: #D4EDDA; color: #155724; }
+                        .status-repair { background: #FFF3CD; color: #856404; }
+                        .status-grounded { background: #F8D7DA; color: #721C24; }
+                        .verified-badge { background: #D1ECF1; color: #0C5460; }
+                        .card { background: white; margin: 0.75rem; border-radius: 12px; overflow: hidden; border: 1px solid #E8ECEB; }
+                        .card-title { padding: 0.75rem 1rem; background: #F8FAF9; border-bottom: 1px solid #E8ECEB; font-size: 0.8rem; font-weight: 600; color: #006B3F; text-transform: uppercase; letter-spacing: 0.5px; }
+                        .card-body { padding: 0; }
+                        .info-row { display: flex; justify-content: space-between; align-items: center; padding: 0.65rem 1rem; border-bottom: 1px solid #F0F2F1; }
+                        .info-row:last-child { border-bottom: none; }
+                        .info-label { font-size: 0.82rem; color: #6B7B75; }
+                        .info-value { font-size: 0.82rem; font-weight: 500; color: #2C3E50; text-align: right; max-width: 55%; }
+                        .compliance-ok { color: #27AE60; }
+                        .compliance-warn { color: #E67E22; }
+                        .compliance-bad { color: #E74C3C; }
+                        .footer-note { text-align: center; padding: 1rem; font-size: 0.7rem; color: #999; }
+                        .footer-note a { color: #006B3F; }
+                        .role-note { background: #FFF8E1; border: 1px solid #FFE082; margin: 0.75rem; border-radius: 8px; padding: 0.75rem; font-size: 0.75rem; color: #6D5E00; text-align: center; }
+                        .photo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 0.5rem; }
+                        .photo-placeholder { background: #E8ECEB; border-radius: 6px; height: 80px; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; color: #999; }
+                    </style>
+                </head>
+                <body>
+                    <div class="header">
+                        <h1>Lagos Waste Management Authority</h1>
+                        <p>Fleet Revalidation & Digital Coding System</p>
+                    </div>
+
+                    <div class="id-banner">
+                        ${uniqueId}
+                        <small>Scanned at ${new Date().toLocaleString()}</small>
+                    </div>
+
+                    <div class="status-bar">
+                        <span class="status-badge ${truck.operationalStatus === 'Active' ? 'status-active' : truck.operationalStatus === 'Under Repair' ? 'status-repair' : 'status-grounded'}">${truck.operationalStatus}</span>
+                        <span class="status-badge verified-badge">LAWMA Verified</span>
+                    </div>
+
+                    <div class="role-note">
+                        This is the <strong>Field Monitor</strong> view. Operator identity is hidden. Senior LAWMA officials see the full record when logged into the dashboard.
+                    </div>
+
+                    <div class="card">
+                        <div class="card-title">Vehicle Information</div>
+                        <div class="card-body">
+                            <div class="info-row"><span class="info-label">Registration No.</span><span class="info-value">${truck.registrationNumber}</span></div>
+                            <div class="info-row"><span class="info-label">Vehicle Type</span><span class="info-value">${truck.vehicleType}</span></div>
+                            <div class="info-row"><span class="info-label">Make & Model</span><span class="info-value">${make}</span></div>
+                            <div class="info-row"><span class="info-label">Year</span><span class="info-value">${truck.yearOfManufacture}</span></div>
+                            <div class="info-row"><span class="info-label">Colour</span><span class="info-value">${truck.vehicleColour || 'Not specified'}</span></div>
+                            <div class="info-row"><span class="info-label">Capacity</span><span class="info-value">${truck.capacity ? truck.capacity + ' tonnes' : 'Not specified'}</span></div>
+                            <div class="info-row"><span class="info-label">Ownership</span><span class="info-value">${truck.ownership || 'Not specified'}</span></div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-title">Compliance Status</div>
+                        <div class="card-body">
+                            <div class="info-row">
+                                <span class="info-label">Roadworthiness</span>
+                                <span class="info-value ${truck.roadworthinessExpiry && new Date(truck.roadworthinessExpiry) > new Date() ? 'compliance-ok' : 'compliance-warn'}">
+                                    ${truck.roadworthinessCert ? truck.roadworthinessExpiry ? 'Expires ' + truck.roadworthinessExpiry : 'On file' : 'Not provided'}
+                                </span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">Insurance</span>
+                                <span class="info-value ${truck.insuranceStatus === 'Valid' ? 'compliance-ok' : truck.insuranceStatus === 'Expired' ? 'compliance-bad' : 'compliance-warn'}">
+                                    ${truck.insuranceStatus || 'Not specified'}${truck.insuranceStatus === 'Valid' && truck.insuranceExpiry ? ' (exp. ' + truck.insuranceExpiry + ')' : ''}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-title">Zone Assignment</div>
+                        <div class="card-body">
+                            <div class="info-row"><span class="info-label">Assigned LGA</span><span class="info-value">${state.selectedOperator?.lga || 'N/A'}</span></div>
+                            <div class="info-row"><span class="info-label">Zone</span><span class="info-value">${state.selectedOperator?.zone || 'N/A'}</span></div>
+                            <div class="info-row"><span class="info-label">GPS Tracker</span><span class="info-value compliance-ok">Installed & Active</span></div>
+                            <div class="info-row"><span class="info-label">Last Seen</span><span class="info-value">${new Date().toLocaleString()}</span></div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-title">Vehicle Photos</div>
+                        <div class="card-body">
+                            <div class="photo-grid">
+                                ${truck.photo0 ? '<img src="' + truck.photo0 + '" style="width:100%;height:80px;object-fit:cover;border-radius:6px;">' : '<div class="photo-placeholder">Front view</div>'}
+                                ${truck.photo1 ? '<img src="' + truck.photo1 + '" style="width:100%;height:80px;object-fit:cover;border-radius:6px;">' : '<div class="photo-placeholder">Rear view</div>'}
+                                ${truck.photo2 ? '<img src="' + truck.photo2 + '" style="width:100%;height:80px;object-fit:cover;border-radius:6px;">' : '<div class="photo-placeholder">Side view</div>'}
+                                ${truck.photo3 ? '<img src="' + truck.photo3 + '" style="width:100%;height:80px;object-fit:cover;border-radius:6px;">' : '<div class="photo-placeholder">License plate</div>'}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="footer-note">
+                        LAWMA Fleet Monitoring System &copy; ${new Date().getFullYear()}<br>
+                        Powered by <a href="https://www.greentalk.africa">GreenTalk</a><br><br>
+                        <span style="color: #ccc;">URL: ${truckUrl}</span>
+                    </div>
+                </body>
+                </html>
+            `);
+            profileWindow.document.close();
+        }
+
+        // Download QR Codes
+        function downloadQRCodes() {
+            const link = document.createElement('a');
+            link.href = 'data:text/plain,QR codes can be downloaded from the application';
+            link.download = 'qr-codes-summary.txt';
+            link.click();
+
+            alert('In a production environment, QR codes would be downloaded as individual images or a PDF document');
+        }
+
+        // Print Summary
+        function printSummary() {
+            const printWindow = window.open('', '', 'height=600,width=800');
+            let html = `
+                <html>
+                <head>
+                    <title>LAWMA PSP Fleet Registration Summary</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; margin: 20px; }
+                        .header { color: #006B3F; margin-bottom: 20px; border-bottom: 2px solid #006B3F; padding-bottom: 10px; }
+                        .operator-info { margin: 20px 0; padding: 10px; background: #f0f0f0; }
+                        .truck-info { margin: 20px 0; padding: 15px; border: 1px solid #ddd; page-break-inside: avoid; }
+                        table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+                        th, td { padding: 8px; text-align: left; border-bottom: 1px solid #ddd; }
+                        th { background: #006B3F; color: white; }
+                        .qr-id { font-weight: bold; color: #006B3F; font-size: 18px; }
+                        @media print { .truck-info { page-break-inside: avoid; } }
+                    </style>
+                </head>
+                <body>
+                    <div class="header">
+                        <h1>LAWMA Fleet Registration Summary</h1>
+                        <p>Lagos Waste Management Authority - Fleet Revalidation & Digital Coding System</p>
+                    </div>
+
+                    <div class="operator-info">
+                        <h3>PSP Operator Details</h3>
+                        <table>
+                            <tr><td><strong>Company:</strong></td><td>${state.selectedOperator?.name}</td></tr>
+                            <tr><td><strong>LGA:</strong></td><td>${state.selectedOperator?.lga}</td></tr>
+                            <tr><td><strong>Zone:</strong></td><td>${state.selectedOperator?.zone}</td></tr>
+                            <tr><td><strong>Contact:</strong></td><td>${state.selectedOperator?.contact}</td></tr>
+                            <tr><td><strong>Phone:</strong></td><td>${state.selectedOperator?.phone}</td></tr>
+                        </table>
+                    </div>
+            `;
+
+            state.trucks.forEach((truck, idx) => {
+                html += `
+                    <div class="truck-info">
+                        <h4>Truck ${idx + 1} of ${state.fleetSize}</h4>
+                        <table>
+                            <tr><td><strong>Unique ID:</strong></td><td class="qr-id">${state.registrationIds[idx]}</td></tr>
+                            <tr><td><strong>Registration Number:</strong></td><td>${truck.registrationNumber}</td></tr>
+                            <tr><td><strong>Make & Model:</strong></td><td>${truck.vehicleMake === 'Other' ? truck.vehicleMakeOther : truck.vehicleMake}</td></tr>
+                            <tr><td><strong>Vehicle Type:</strong></td><td>${truck.vehicleType}</td></tr>
+                            <tr><td><strong>Year:</strong></td><td>${truck.yearOfManufacture}</td></tr>
+                            <tr><td><strong>Chassis Number:</strong></td><td>${truck.chassisNumber}</td></tr>
+                            <tr><td><strong>Status:</strong></td><td>${truck.operationalStatus}</td></tr>
+                            <tr><td><strong>Ownership:</strong></td><td>${truck.ownership}</td></tr>
+                            <tr><td><strong>Insurance:</strong></td><td>${truck.insuranceStatus}</td></tr>
+                        </table>
+                    </div>
+                `;
+            });
+
+            html += `
+                    <div style="margin-top: 40px; border-top: 2px solid #006B3F; padding-top: 20px;">
+                        <p><strong>Registration Date:</strong> ${new Date().toLocaleDateString()}</p>
+                        <p><strong>Total Trucks Registered:</strong> ${state.fleetSize}</p>
+                        <p style="margin-top: 30px; font-size: 12px; color: #666;">This is an automated summary from the LAWMA PSP Fleet Registration System.</p>
+                    </div>
+                </body>
+                </html>
+            `;
+
+            printWindow.document.write(html);
+            printWindow.document.close();
+            printWindow.print();
+        }
+
+        // Utility Functions
+        function showError(elementId, message) {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            element.classList.add('show');
+        }
+
+        function clearError(elementId) {
+            const element = document.getElementById(elementId);
+            element.classList.remove('show');
+        }
+
+        function showSaveIndicator() {
+            const indicator = document.getElementById('save-indicator');
+            indicator.classList.add('show');
+            setTimeout(() => {
+                indicator.classList.remove('show');
+            }, 2000);
+        }
+
+        // Initialize on load
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
