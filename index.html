@@ -1815,4 +1815,77 @@
             let html = `<html><head><title>LAWMA PSP Fleet Registration Summary</title>
                 <style>
                     body { font-family: Arial, sans-serif; margin: 20px; }
-                    .header { color: #006B3F; margin-bottom: 20px; border-bottom: 2px solid #00
+                    .header { color: #006B3F; margin-bottom: 20px; border-bottom: 2px solid #006B3F; padding-bottom: 10px; }
+                    .op-info { margin: 15px 0; padding: 12px; background: #f5f5f5; border-radius: 4px; }
+                    .truck-block { margin: 15px 0; padding: 15px; border: 1px solid #ddd; page-break-inside: avoid; }
+                    .truck-block h4 { color: #006B3F; margin-bottom: 5px; }
+                    .serial-num { font-size: 16px; font-weight: bold; color: #004D2D; letter-spacing: 1px; margin-bottom: 10px; }
+                    table { width: 100%; border-collapse: collapse; margin: 8px 0; }
+                    td { padding: 6px 8px; border-bottom: 1px solid #eee; font-size: 14px; }
+                    td:first-child { color: #666; width: 40%; }
+                    @media print { .truck-block { page-break-inside: avoid; } }
+                </style></head><body>
+                <div class="header">
+                    <h1>LAWMA PSP Fleet Registration Summary</h1>
+                    <p>Lagos Waste Management Authority — Fleet Revalidation & Registration</p>
+                </div>
+                <div class="op-info">
+                    <table>
+                        <tr><td><strong>Company:</strong></td><td>${state.operator.company}</td></tr>
+                        <tr><td><strong>Contact:</strong></td><td>${state.operator.contact}</td></tr>
+                        <tr><td><strong>Phone:</strong></td><td>${state.operator.phone}</td></tr>
+                        <tr><td><strong>Email:</strong></td><td>${state.operator.email}</td></tr>
+                        <tr><td><strong>LGA:</strong></td><td>${state.operator.lga}</td></tr>
+                        ${state.operator.ward ? `<tr><td><strong>Ward:</strong></td><td>${state.operator.ward}</td></tr>` : ''}
+                        <tr><td><strong>Fleet Size:</strong></td><td>${state.fleetSize} truck(s)</td></tr>
+                    </table>
+                </div>`;
+
+            state.trucks.forEach((truck, idx) => {
+                if (!truck._saved) return;
+                const id = truck.isRegistered === 'Yes' ? truck.registrationNumber : ('Chassis: ' + truck.chassisNumber);
+                const make = truck.vehicleMake === 'Other' ? truck.vehicleMakeOther : truck.vehicleMake;
+                const type = truck.vehicleType === 'Other' ? truck.vehicleTypeOther : truck.vehicleType;
+
+                html += `<div class="truck-block">
+                    <h4>Truck ${idx + 1} of ${state.fleetSize}</h4>
+                    <div class="serial-num">${state.registrationIds[idx]}</div>
+                    <table>
+                        <tr><td>${truck.isRegistered === 'Yes' ? 'Reg Number' : 'Chassis Number'}:</td><td>${id}</td></tr>
+                        <tr><td>Type:</td><td>${type}</td></tr>
+                        <tr><td>Make:</td><td>${make}${truck.vehicleModel ? ' — ' + truck.vehicleModel : ''}</td></tr>
+                        ${truck.numTyres ? `<tr><td>Tyres:</td><td>${truck.numTyres}</td></tr>` : ''}
+                        <tr><td>Status:</td><td>${truck.operationalStatus}</td></tr>
+                        <tr><td>Ownership:</td><td>${truck.ownership}${truck.ownership === 'Other' ? ' (' + truck.ownershipExplain + ')' : ''}</td></tr>
+                        <tr><td>Insurance:</td><td>${truck.insuranceType}</td></tr>
+                    </table>
+                </div>`;
+            });
+
+            html += `<div style="margin-top:30px;border-top:2px solid #006B3F;padding-top:15px;">
+                <p><strong>Registration Date:</strong> ${new Date().toLocaleDateString()}</p>
+                <p><strong>Total Trucks:</strong> ${state.fleetSize}</p>
+                <p style="margin-top:20px;font-size:12px;color:#666;">LAWMA PSP Fleet Registration System &bull; Powered by GreenTalk</p>
+            </div></body></html>`;
+
+            pw.document.write(html);
+            pw.document.close();
+            pw.print();
+        }
+
+        // Utilities
+        function showError(id, msg) {
+            const el = document.getElementById(id);
+            el.textContent = msg;
+            el.classList.add('show');
+        }
+
+        function clearError(id) {
+            const el = document.getElementById(id);
+            if (el) el.classList.remove('show');
+        }
+
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
