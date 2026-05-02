@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LAWMA Fleet Dashboard — Admin</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #F0F4F3; color: #2C3E50; }
+
+        .header { background: linear-gradient(135deg, #006B3F, #0D9944); color: white; padding: 1.25rem 2rem; display: flex; justify-content: space-between; align-items: center; }
+        .header h1 { font-size: 1.2rem; }
+        .header p { font-size: 0.8rem; opacity: 0.85; }
+        .header-right { display: flex; gap: 0.75rem; align-items: center; }
+        .header-right .btn { background: rgba(255,255,255,0.15); color: white; border: 1px solid rgba(255,255,255,0.3); padding: 0.4rem 1rem; border-radius: 6px; font-size: 0.8rem; cursor: pointer; text-decoration: none; }
+        .header-right .btn:hover { background: rgba(255,255,255,0.25); }
+
+        .container { max-width: 1200px; margin: 0 auto; padding: 1.5rem; }
+
+        /* KPI Cards */
+        .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+        .kpi-card { background: white; border-radius: 10px; padding: 1.25rem; border: 1px solid #E8ECEB; }
+        .kpi-label { font-size: 0.75rem; color: #6B7B75; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.5rem; }
+        .kpi-value { font-size: 2rem; font-weight: 700; color: #006B3F; }
+        .kpi-sub { font-size: 0.75rem; color: #999; margin-top: 0.25rem; }
+
+        /* Controls */
+        .controls { display: flex; gap: 0.75rem; margin-bottom: 1rem; flex-wrap: wrap; align-items: center; }
+        .controls input, .controls select { padding: 0.5rem 0.75rem; border: 1px solid #D5DBDD; border-radius: 6px; font-size: 0.85rem; background: white; outline: none; }
+        .controls input:focus, .controls select:focus { border-color: #006B3F; box-shadow: 0 0 0 2px rgba(0,107,63,0.1); }
+        .controls input { flex: 1; min-width: 200px; }
+        .controls select { min-width: 160px; }
+        .btn-export { background: #006B3F; color: white; border: none; padding: 0.5rem 1rem; border-radius: 6px; font-size: 0.85rem; cursor: pointer; font-weight: 500; }
+        .btn-export:hover { background: #005533; }
+
+        /* Tabs */
+        .tabs { display: flex; gap: 0; margin-bottom: 0; }
+        .tab { padding: 0.6rem 1.25rem; font-size: 0.85rem; cursor: pointer; border: 1px solid #D5DBDD; border-bottom: none; background: #F8FAF9; color: #6B7B75; border-radius: 8px 8px 0 0; margin-right: -1px; }
+        .tab.active { background: white; color: #006B3F; font-weight: 600; border-bottom: 1px solid white; position: relative; z-index: 1; }
+
+        /* Table */
+        .table-wrap { background: white; border: 1px solid #E8ECEB; border-radius: 0 10px 10px 10px; overflow: hidden; }
+        table { width: 100%; border-collapse: collapse; }
+        th { background: #F8FAF9; padding: 0.75rem 1rem; text-align: left; font-size: 0.75rem; color: #6B7B75; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #E8ECEB; }
+        td { padding: 0.65rem 1rem; font-size: 0.85rem; border-bottom: 1px solid #F0F2F1; }
+        tr:hover { background: #FAFBFA; }
+        tr:last-child td { border-bottom: none; }
+
+        .badge { display: inline-block; padding: 0.2rem 0.6rem; border-radius: 12px; font-size: 0.72rem; font-weight: 600; }
+        .b-active { background: #D4EDDA; color: #155724; }
+        .b-grounded { background: #F8D7DA; color: #721C24; }
+        .b-registered { background: #D1ECF1; color: #0C5460; }
+        .b-unregistered { background: #FFF3CD; color: #856404; }
+
+        .clickable { color: #006B3F; cursor: pointer; text-decoration: underline; }
+        .clickable:hover { color: #004D2D; }
+
+        .empty-state { text-align: center; padding: 3rem 1rem; color: #999; }
+        .empty-state h3 { margin-bottom: 0.5rem; color: #6B7B75; }
+
+        .loading { text-align: center; padding: 2rem; }
+        .spinner { width: 30px; height: 30px; border: 3px solid #E8ECEB; border-top: 3px solid #006B3F; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 0.75rem; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Operator detail modal */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.4); z-index: 100; justify-content: center; align-items: flex-start; padding-top: 5vh; }
+        .modal-overlay.show { display: flex; }
+        .modal { background: white; border-radius: 12px; width: 90%; max-width: 700px; max-height: 85vh; overflow-y: auto; }
+        .modal-header { padding: 1rem 1.25rem; border-bottom: 1px solid #E8ECEB; display: flex; justify-content: space-between; align-items: center; }
+        .modal-header h3 { font-size: 1rem; color: #006B3F; }
+        .modal-close { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #999; }
+        .modal-body { padding: 1.25rem; }
+        .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-bottom: 1rem; }
+        .detail-item { }
+        .detail-label { font-size: 0.72rem; color: #6B7B75; text-transform: uppercase; letter-spacing: 0.3px; }
+        .detail-value { font-size: 0.9rem; font-weight: 500; margin-top: 0.15rem; }
+        .truck-card { background: #F8FAF9; border: 1px solid #E8ECEB; border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 0.75rem; }
+        .truck-card h4 { font-size: 0.85rem; color: #006B3F; margin-bottom: 0.5rem; }
+        .truck-card .row { display: flex; justify-content: space-between; font-size: 0.82rem; padding: 0.2rem 0; }
+        .truck-card .row-l { color: #6B7B75; }
+
+        @media (max-width: 768px) {
+            .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+            .controls { flex-direction: column; }
+            .controls input { width: 100%; }
+            .detail-grid { grid-template-columns: 1fr; }
+            table { font-size: 0.78rem; }
+            th, td { padding: 0.5rem 0.6rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div>
+            <h1>GreenTalk Fleet Dashboard</h1>
+            <p>LAWMA PSP Fleet Revalidation — Admin View</p>
+        </div>
+        <div class="header-right">
+            <a href="index.html" class="btn">+ New Registration</a>
+            <span id="last-refresh" style="font-size:0.7rem;opacity:0.7;"></span>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- KPI Cards -->
+        <div class="kpi-grid">
+            <div class="kpi-card">
+                <div class="kpi-label">Total PSP operators</div>
+                <div class="kpi-value" id="kpi-operators">—</div>
+                <div class="kpi-sub">Registered companies</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Total trucks</div>
+                <div class="kpi-value" id="kpi-trucks">—</div>
+                <div class="kpi-sub">Across all operators</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Active trucks</div>
+                <div class="kpi-value" id="kpi-active">—</div>
+                <div class="kpi-sub" id="kpi-active-pct"></div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">LGAs covered</div>
+                <div class="kpi-value" id="kpi-lgas">—</div>
+                <div class="kpi-sub">Unique areas</div>
+            </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="controls">
+            <input type="text" id="search" placeholder="Search by company, registration ID, or plate number..." />
+            <select id="filter-lga">
+                <option value="">All LGAs</option>
+            </select>
+            <select id="filter-status">
+                <option value="">All Status</option>
+                <option value="Active">Active</option>
+                <option value="Grounded">Grounded</option>
+            </select>
+            <button class="btn-export" onclick="exportCSV()">Export CSV</button>
+        </div>
+
+        <!-- Tabs -->
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('operators')">PSP Operators</div>
+            <div class="tab" onclick="switchTab('trucks')">All Trucks</div>
+        </div>
+
+        <!-- Table -->
+        <div class="table-wrap">
+            <div id="table-loading" class="loading"><div class="spinner"></div><p>Loading data...</p></div>
+            <table id="data-table" style="display:none;">
+                <thead id="table-head"></thead>
+                <tbody id="table-body"></tbody>
+            </table>
+            <div id="empty-state" class="empty-state" style="display:none;">
+                <h3>No registrations yet</h3>
+                <p>Once PSP operators register through the form, their data will appear here.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Operator Detail Modal -->
+    <div class="modal-overlay" id="modal-overlay" onclick="closeModal(event)">
+        <div class="modal" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h3 id="modal-title">Operator Details</h3>
+                <button class="modal-close" onclick="document.getElementById('modal-overlay').classList.remove('show')">&times;</button>
+            </div>
+            <div class="modal-body" id="modal-body"></div>
+        </div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://iabunyskxepqfussvpwd.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_pVMZnYSkWFnrFWGbKeWBHg_0YiicplF';
+        const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        let operators = [];
+        let trucks = [];
+        let currentTab = 'operators';
+
+        async function loadData() {
+            try {
+                const [opRes, trRes] = await Promise.all([
+                    sb.from('psp_operators').select('*').order('created_at', { ascending: false }),
+                    sb.from('trucks').select('*').order('created_at', { ascending: false })
+                ]);
+
+                if (opRes.error) throw opRes.error;
+                if (trRes.error) throw trRes.error;
+
+                operators = opRes.data || [];
+                trucks = trRes.data || [];
+
+                updateKPIs();
+                populateLGAFilter();
+                renderTable();
+
+                document.getElementById('last-refresh').textContent = 'Updated ' + new Date().toLocaleTimeString();
+            } catch (err) {
+                console.error('Load error:', err);
+                document.getElementById('table-loading').innerHTML = '<p style="color:#E74C3C;">Failed to load data. Check your connection.</p>';
+            }
+        }
+
+        function updateKPIs() {
+            document.getElementById('kpi-operators').textContent = operators.length;
+            document.getElementById('kpi-trucks').textContent = trucks.length;
+
+            const active = trucks.filter(t => t.operational_status === 'Active').length;
+            document.getElementById('kpi-active').textContent = active;
+            document.getElementById('kpi-active-pct').textContent = trucks.length > 0
+                ? Math.round((active / trucks.length) * 100) + '% of fleet'
+                : '';
+
+            const lgas = new Set(operators.map(o => o.lga).filter(Boolean));
+            document.getElementById('kpi-lgas').textContent = lgas.size;
+        }
+
+        function populateLGAFilter() {
+            const select = document.getElementById('filter-lga');
+            const lgas = [...new Set(operators.map(o => o.lga).filter(Boolean))].sort();
+            lgas.forEach(lga => {
+                const opt = document.createElement('option');
+                opt.value = lga;
+                opt.textContent = lga;
+                select.appendChild(opt);
+            });
+        }
+
+        function switchTab(tab) {
+            currentTab = tab;
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelector(`.tab:${tab === 'operators' ? 'first-child' : 'last-child'}`).classList.add('active');
+            renderTable();
+        }
+
+        function renderTable() {
+            const searchVal = document.getElementById('search').value.toLowerCase();
+            const lgaFilter = document.getElementById('filter-lga').value;
+            const statusFilter = document.getElementById('filter-status').value;
+
+            const thead = document.getElementById('table-head');
+            const tbody = document.getElementById('table-body');
+            const table = document.getElementById('data-table');
+            const loading = document.getElementById('table-loading');
+            const empty = document.getElementById('empty-state');
+
+            loading.style.display = 'none';
+
+            if (currentTab === 'operators') {
+                renderOperatorsTable(thead, tbody, searchVal, lgaFilter);
+            } else {
+                renderTrucksTable(thead, tbody, searchVal, lgaFilter, statusFilter);
+            }
+
+            const hasRows = tbody.children.length > 0;
+            table.style.display = hasRows ? 'table' : 'none';
+            empty.style.display = hasRows ? 'none' : 'block';
+        }
+
+        function renderOperatorsTable(thead, tbody, search, lgaFilter) {
+            thead.innerHTML = '<tr><th>Company</th><th>Contact</th><th>Phone</th><th>LGA</th><th>Trucks</th><th>Registered</th></tr>';
+            tbody.innerHTML = '';
+
+            let filtered = operators;
+            if (lgaFilter) filtered = filtered.filter(o => o.lga === lgaFilter);
+            if (search) filtered = filtered.filter(o =>
+                o.company_name.toLowerCase().includes(search) ||
+                o.contact_person.toLowerCase().includes(search) ||
+                o.registration_id.toLowerCase().includes(search) ||
+                o.phone.includes(search)
+            );
+
+            filtered.forEach(op => {
+                const opTrucks = trucks.filter(t => t.operator_id === op.id);
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><span class="clickable" onclick="showOperatorDetail('${op.id}')">${op.company_name}</span></td>
+                    <td>${op.contact_person}</td>
+                    <td>${op.phone}</td>
+                    <td>${op.lga}</td>
+                    <td><strong>${opTrucks.length}</strong></td>
+                    <td>${new Date(op.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function renderTrucksTable(thead, tbody, search, lgaFilter, statusFilter) {
+            thead.innerHTML = '<tr><th>Registration ID</th><th>Plate / Chassis</th><th>Type</th><th>Make</th><th>Status</th><th>Owner (PSP)</th><th>Insurance</th></tr>';
+            tbody.innerHTML = '';
+
+            let filtered = trucks;
+            if (statusFilter) filtered = filtered.filter(t => t.operational_status === statusFilter);
+            if (lgaFilter) {
+                const opIds = new Set(operators.filter(o => o.lga === lgaFilter).map(o => o.id));
+                filtered = filtered.filter(t => opIds.has(t.operator_id));
+            }
+            if (search) filtered = filtered.filter(t =>
+                (t.registration_id || '').toLowerCase().includes(search) ||
+                (t.vehicle_reg_number || '').toLowerCase().includes(search) ||
+                (t.chassis_number || '').toLowerCase().includes(search) ||
+                (t.make || '').toLowerCase().includes(search)
+            );
+
+            filtered.forEach(t => {
+                const op = operators.find(o => o.id === t.operator_id);
+                const plateOrChassis = t.is_registered ? (t.vehicle_reg_number || '—') : ('CH: ' + (t.chassis_number || '—'));
+                const make = t.make === 'Other' ? (t.make_other || 'Other') : (t.make || '—');
+                const type = t.vehicle_type === 'Other' ? (t.vehicle_type_other || 'Other') : (t.vehicle_type || '—');
+                const insDisplay = t.insurance_status === 'None' ? 'None' : (t.insurance_type || t.insurance_status || '—');
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><span class="clickable" onclick="window.open('scan.html?id=${t.registration_id}','_blank')">${t.registration_id}</span></td>
+                    <td>${plateOrChassis}</td>
+                    <td>${type}</td>
+                    <td>${make}</td>
+                    <td><span class="badge ${t.operational_status === 'Active' ? 'b-active' : 'b-grounded'}">${t.operational_status || '—'}</span></td>
+                    <td>${op ? op.company_name : '—'}</td>
+                    <td>${insDisplay}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function showOperatorDetail(opId) {
+            const op = operators.find(o => o.id === opId);
+            if (!op) return;
+            const opTrucks = trucks.filter(t => t.operator_id === opId);
+
+            document.getElementById('modal-title').textContent = op.company_name;
+
+            let html = `
+                <div class="detail-grid">
+                    <div class="detail-item"><div class="detail-label">Registration ID</div><div class="detail-value">${op.registration_id}</div></div>
+                    <div class="detail-item"><div class="detail-label">Contact Person</div><div class="detail-value">${op.contact_person}</div></div>
+                    <div class="detail-item"><div class="detail-label">Phone</div><div class="detail-value">${op.phone}</div></div>
+                    <div class="detail-item"><div class="detail-label">Email</div><div class="detail-value">${op.email}</div></div>
+                    <div class="detail-item"><div class="detail-label">LGA</div><div class="detail-value">${op.lga}</div></div>
+                    <div class="detail-item"><div class="detail-label">Ward</div><div class="detail-value">${op.ward || '—'}</div></div>
+                    <div class="detail-item"><div class="detail-label">Fleet Size (declared)</div><div class="detail-value">${op.fleet_size}</div></div>
+                    <div class="detail-item"><div class="detail-label">Registered</div><div class="detail-value">${new Date(op.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</div></div>
+                </div>
+                <h4 style="font-size:0.85rem;color:#006B3F;margin:1rem 0 0.5rem;">Registered Trucks (${opTrucks.length})</h4>
+            `;
+
+            if (opTrucks.length === 0) {
+                html += '<p style="color:#999;font-size:0.85rem;">No trucks registered yet.</p>';
+            } else {
+                opTrucks.forEach((t, idx) => {
+                    const make = t.make === 'Other' ? (t.make_other || 'Other') : (t.make || '—');
+                    const type = t.vehicle_type === 'Other' ? (t.vehicle_type_other || 'Other') : (t.vehicle_type || '—');
+                    const plateOrChassis = t.is_registered ? (t.vehicle_reg_number || '—') : ('Chassis: ' + (t.chassis_number || '—'));
+
+                    html += `
+                        <div class="truck-card">
+                            <h4>Truck ${idx + 1} — ${t.registration_id}
+                                <span class="badge ${t.operational_status === 'Active' ? 'b-active' : 'b-grounded'}" style="margin-left:8px;">${t.operational_status}</span>
+                            </h4>
+                            <div class="row"><span class="row-l">${t.is_registered ? 'Plate' : 'Chassis'}</span><span>${plateOrChassis}</span></div>
+                            <div class="row"><span class="row-l">Type</span><span>${type}</span></div>
+                            <div class="row"><span class="row-l">Make</span><span>${make}</span></div>
+                            <div class="row"><span class="row-l">Ownership</span><span>${t.ownership_status || '—'}</span></div>
+                            <div class="row"><span class="row-l">Insurance</span><span>${t.insurance_type || t.insurance_status || '—'}</span></div>
+                            <div style="margin-top:0.5rem;">
+                                <span class="clickable" onclick="window.open('scan.html?id=${t.registration_id}','_blank')" style="font-size:0.78rem;">View scan page &rarr;</span>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+
+            document.getElementById('modal-body').innerHTML = html;
+            document.getElementById('modal-overlay').classList.add('show');
+        }
+
+        function closeModal(e) {
+            if (e.target === document.getElementById('modal-overlay')) {
+                document.getElementById('modal-overlay').classList.remove('show');
+            }
+        }
+
+        function exportCSV() {
+            let csv = '';
+
+            if (currentTab === 'operators') {
+                csv = 'Company,Contact,Phone,Email,LGA,Ward,Fleet Size,Registration ID,Date\n';
+                operators.forEach(op => {
+                    csv += `"${op.company_name}","${op.contact_person}","${op.phone}","${op.email}","${op.lga}","${op.ward || ''}",${op.fleet_size},"${op.registration_id}","${new Date(op.created_at).toLocaleDateString()}"\n`;
+                });
+            } else {
+                csv = 'Registration ID,Plate Number,Chassis,Type,Make,Status,Ownership,Insurance,Operator,LGA,Date\n';
+                trucks.forEach(t => {
+                    const op = operators.find(o => o.id === t.operator_id);
+                    const make = t.make === 'Other' ? (t.make_other || 'Other') : (t.make || '');
+                    const type = t.vehicle_type === 'Other' ? (t.vehicle_type_other || 'Other') : (t.vehicle_type || '');
+                    csv += `"${t.registration_id}","${t.vehicle_reg_number || ''}","${t.chassis_number || ''}","${type}","${make}","${t.operational_status || ''}","${t.ownership_status || ''}","${t.insurance_type || t.insurance_status || ''}","${op ? op.company_name : ''}","${op ? op.lga : ''}","${new Date(t.created_at).toLocaleDateString()}"\n`;
+                });
+            }
+
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `lawma-fleet-${currentTab}-${new Date().toISOString().split('T')[0]}.csv`;
+            link.click();
+        }
+
+        // Event listeners
+        document.getElementById('search').addEventListener('input', renderTable);
+        document.getElementById('filter-lga').addEventListener('change', renderTable);
+        document.getElementById('filter-status').addEventListener('change', renderTable);
+
+        // Keyboard shortcut - Escape closes modal
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') document.getElementById('modal-overlay').classList.remove('show');
+        });
+
+        // Load data on page load
+        loadData();
+    </script>
+</body>
+</html>
