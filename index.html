@@ -348,6 +348,25 @@
             font-size: 1.2rem;
         }
 
+        /* Ward Checklist */
+        .ward-check-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.6rem;
+            padding: 0.6rem 0.5rem;
+            border-bottom: 1px solid var(--border-color);
+            transition: background 0.15s;
+        }
+        .ward-check-item:last-child { border-bottom: none; }
+        .ward-check-item:hover { background: rgba(0,107,63,0.04); }
+        .ward-check-item input[type="checkbox"] {
+            width: 18px; height: 18px; margin-top: 2px;
+            accent-color: var(--lawma-green); cursor: pointer; flex-shrink: 0;
+        }
+        .ward-check-label { cursor: pointer; flex: 1; }
+        .ward-check-label strong { font-size: 0.92rem; color: var(--text-dark); }
+        .ward-check-label small { display: block; font-size: 0.8rem; color: var(--text-light); margin-top: 1px; }
+
         /* Truck Details */
         .truck-header {
             background: linear-gradient(135deg, var(--lawma-green), var(--lawma-light-green));
@@ -809,14 +828,46 @@
             <!-- Step 1: PSP Operator Information -->
             <div class="form-section active" data-section="1">
                 <h2 class="step-title">PSP Operator Information</h2>
-                <p class="step-description">Select your company or enter details manually if not listed</p>
+                <p class="step-description">Search for your company name. Your assigned LGA and ward(s) will auto-fill from LAWMA's records.</p>
 
                 <div class="error-message" id="error-step1"></div>
 
                 <div class="form-group autocomplete-container">
                     <label for="company-name" class="required">Company Name</label>
-                    <input type="text" id="company-name" placeholder="Search for your company or type a new name..." autocomplete="off">
+                    <input type="text" id="company-name" placeholder="Start typing your company name..." autocomplete="off">
                     <div class="autocomplete-dropdown" id="company-dropdown" style="display: none;"></div>
+                </div>
+
+                <!-- Ward assignments with checkboxes (shown after PSP selection from list) -->
+                <div id="ward-checklist-group" style="display:none; margin-bottom: 1.5rem;">
+                    <label class="required" style="margin-bottom: 0.75rem;">Your LAWMA Ward Assignment(s)</label>
+                    <p style="font-size:0.85rem; color:var(--text-light); margin-bottom: 0.75rem;">All your assigned wards are selected. Uncheck any ward you do <em>not</em> want to include in this registration.</p>
+                    <div id="ward-checklist" style="background: var(--bg-light); border: 1px solid var(--border-color); border-radius: 8px; padding: 0.75rem 1rem; max-height: 280px; overflow-y: auto;"></div>
+                    <p style="font-size:0.8rem; color:var(--text-light); margin-top: 0.5rem;" id="ward-checklist-summary"></p>
+
+                    <!-- Add more wards -->
+                    <div id="add-ward-toggle" style="margin-top: 0.75rem;">
+                        <button type="button" id="btn-add-ward" class="btn-link" style="background:none; border:none; color:var(--lawma-green); font-weight:600; cursor:pointer; font-size:0.9rem; padding:0.4rem 0;">+ Add another LGA / Ward</button>
+                    </div>
+                    <div id="add-ward-panel" style="display:none; margin-top: 0.75rem; padding: 1rem; background: #f8fdf9; border: 1px dashed var(--lawma-green); border-radius: 8px;">
+                        <div class="form-columns" style="margin-bottom: 0.75rem;">
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label for="add-ward-lga" style="font-size: 0.85rem;">LGA</label>
+                                <select id="add-ward-lga" style="font-size: 0.9rem;">
+                                    <option value="">Select LGA...</option>
+                                </select>
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label for="add-ward-name" style="font-size: 0.85rem;">Ward Name</label>
+                                <input type="text" id="add-ward-name" placeholder="Enter ward name" style="font-size: 0.9rem;">
+                            </div>
+                        </div>
+                        <div style="display:flex; gap:0.5rem;">
+                            <button type="button" id="btn-add-ward-confirm" class="btn-primary" style="padding: 0.5rem 1.2rem; font-size: 0.85rem;">Add Ward</button>
+                            <button type="button" id="btn-add-ward-cancel" class="btn-secondary" style="padding: 0.5rem 1.2rem; font-size: 0.85rem;">Cancel</button>
+                        </div>
+                        <p id="add-ward-error" style="color:var(--error-color); font-size:0.8rem; margin-top:0.5rem; display:none;"></p>
+                    </div>
                 </div>
 
                 <div id="manual-fields">
@@ -833,15 +884,20 @@
                             <label for="email-address" class="required">Email Address</label>
                             <input type="email" id="email-address" placeholder="e.g., info@company.com">
                         </div>
-                        <div class="form-group">
-                            <label for="lga" class="required">Local Government Area (LGA)</label>
-                            <select id="lga">
-                                <option value="">Select your LGA...</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="ward">Ward <span class="optional-tag">(Optional)</span></label>
-                            <input type="text" id="ward" placeholder="Enter ward if applicable">
+                    </div>
+                    <!-- Manual LGA/Ward fields (only shown when PSP not in list) -->
+                    <div id="manual-lga-ward" style="display:none;">
+                        <div class="form-columns">
+                            <div class="form-group">
+                                <label for="lga" class="required">Local Government Area (LGA)</label>
+                                <select id="lga">
+                                    <option value="">Select your LGA...</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="ward">Ward <span class="optional-tag">(Optional)</span></label>
+                                <input type="text" id="ward" placeholder="Enter your ward">
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -949,54 +1005,14 @@
         </div>
     </div>
 
+    <script src="psp-data.js"></script>
     <script>
-        // Demo PSP Operators (to be replaced with LAWMA's official list)
-        const pspOperators = [
-            { name: 'Visionscape Sanitation Solutions', lga: 'Alimosho', contact: 'Mr. Aminu Yusuf', phone: '08012345678', email: 'aminu@visionscape.com' },
-            { name: 'WestAfrika Cleaning Services', lga: 'Surulere', contact: 'Mrs. Folake Okafor', phone: '08023456789', email: 'folake@westafrica.com' },
-            { name: 'Lagos Waste Mgt Consortium', lga: 'Ikeja', contact: 'Mr. Adekunle Taiwo', phone: '08034567890', email: 'adekunle@lwmc.com' },
-            { name: 'Cleaner Lagos Initiative', lga: 'Lagos Island', contact: 'Ms. Zainab Mohammed', phone: '08045678901', email: 'zainab@cleanerlagos.com' },
-            { name: 'Environmental Solutions Ltd', lga: 'Ikorodu', contact: 'Mr. Kayode Adeyemi', phone: '08056789012', email: 'kayode@envsol.com' },
-            { name: 'Green Valley Waste Systems', lga: 'Epe', contact: 'Mr. Segun Olanrewaju', phone: '08067890123', email: 'segun@greenvalley.com' },
-            { name: 'Metro Waste Management', lga: 'Lagos Mainland', contact: 'Dr. Emeka Nwankwo', phone: '08078901234', email: 'emeka@metrowaste.com' },
-            { name: 'Sustainable Lagos Ltd', lga: 'Oshodi-Isolo', contact: 'Mr. Ibrahim Hassan', phone: '08089012345', email: 'ibrahim@suslagos.com' },
-            { name: 'Eco-Forward Sanitation', lga: 'Mushin', contact: 'Mrs. Gladys Okafor', phone: '08090123456', email: 'gladys@ecoforward.com' },
-            { name: 'Pacific Waste Solutions', lga: 'Apapa', contact: 'Mr. Chidi Okonkwo', phone: '08001234567', email: 'chidi@pacificwaste.com' },
-            { name: 'Urban Cleanup Services', lga: 'Ifako-Ijaiye', contact: 'Ms. Patricia Ajayi', phone: '08012345670', email: 'patricia@urbanclean.com' },
-            { name: 'Fresh Start Waste Mgmt', lga: 'Ajeromi-Ifelodun', contact: 'Mr. Tunde Adebayo', phone: '08023456780', email: 'tunde@freshstart.com' },
-            { name: 'Brightfuture Environmental', lga: 'Badagry', contact: 'Mr. Yinka Bello', phone: '08034567891', email: 'yinka@brightfuture.com' },
-            { name: 'Harmony Waste Solutions', lga: 'Agege', contact: 'Mrs. Aminat Adeyemi', phone: '08045678902', email: 'aminat@harmonyws.com' },
-            { name: 'NextGen Sanitation Ltd', lga: 'Kosofe', contact: 'Mr. Tosin Makinde', phone: '08056789013', email: 'tosin@nextgen.com' },
-            { name: 'Pride Waste Management', lga: 'Shomolu', contact: 'Ms. Nneka Eze', phone: '08067890124', email: 'nneka@pridewaste.com' },
-            { name: 'Future Earth Solutions', lga: 'Ibeju-Lekki', contact: 'Mr. David Okafor', phone: '08078901235', email: 'david@futureearth.com' },
-            { name: 'Pinnacle Sanitation Inc', lga: 'Eti-Osa', contact: 'Mr. Oluwaseun Obi', phone: '08089012346', email: 'oluwaseun@pinnacle.com' },
-            { name: 'Sunrise Waste Systems', lga: 'Ojo', contact: 'Mrs. Folake Adeniyi', phone: '08090123457', email: 'folake@sunrise.com' },
-            { name: 'ProClean Services Ltd', lga: 'Amuwo-Odofin', contact: 'Mr. Kunle Ajayi', phone: '08001234568', email: 'kunle@proclean.com' },
-            { name: 'GreenCare Environmental', lga: 'Alimosho', contact: 'Ms. Blessing Iwuamadi', phone: '08012345671', email: 'blessing@greencare.com' },
-            { name: 'Total Solutions Waste Mgmt', lga: 'Ikeja', contact: 'Mr. Chisom Okoro', phone: '08023456781', email: 'chisom@totalsolutions.com' },
-            { name: 'Premier Sanitation Group', lga: 'Lagos Island', contact: 'Mr. Jide Oyeyemi', phone: '08034567892', email: 'jide@premier.com' },
-            { name: 'Integrated Waste Systems', lga: 'Surulere', contact: 'Mrs. Rose Okonkwo', phone: '08045678903', email: 'rose@integrated.com' },
-            { name: 'EcoPoint Management', lga: 'Mushin', contact: 'Mr. Adebayo Owolabi', phone: '08056789014', email: 'adebayo@ecopoint.com' },
-            { name: 'City Waste Innovations', lga: 'Oshodi-Isolo', contact: 'Ms. Jumoke Akande', phone: '08067890125', email: 'jumoke@citywaste.com' },
-            { name: 'Optimal Waste Solutions', lga: 'Kosofe', contact: 'Mr. Emeka Nwosu', phone: '08078901236', email: 'emeka@optimal.com' },
-            { name: 'Reliable Sanitation Ltd', lga: 'Ikorodu', contact: 'Mr. Wale Akinleye', phone: '08089012347', email: 'wale@reliable.com' },
-            { name: 'Complete Waste Services', lga: 'Epe', contact: 'Mrs. Zainab Ismail', phone: '08090123458', email: 'zainab@complete.com' },
-            { name: 'Advanced Cleaning Systems', lga: 'Lagos Mainland', contact: 'Mr. Obi Anyanwu', phone: '08001234569', email: 'obi@advanced.com' }
-        ];
-
-        // Lagos LGAs (20 LGAs + LCDAs)
-        const lagosLGAs = [
-            'Agege', 'Ajeromi-Ifelodun', 'Alimosho', 'Amuwo-Odofin', 'Apapa',
-            'Badagry', 'Epe', 'Eti-Osa', 'Ibeju-Lekki', 'Ifako-Ijaiye',
-            'Ikeja', 'Ikorodu', 'Kosofe', 'Lagos Island', 'Lagos Mainland',
-            'Mushin', 'Ojo', 'Oshodi-Isolo', 'Shomolu', 'Surulere',
-            'Agbado/Oke-Odo', 'Ayobo-Ipaja', 'Badagry West', 'Coker-Aguda',
-            'Egbe-Idimu', 'Ejigbo', 'Iba', 'Igando-Ikotun', 'Igbogbo-Bayeku',
-            'Ijede', 'Ikosi-Isheri', 'Imota', 'Irede', 'Isolo',
-            'Itire-Ikate', 'Lekki', 'Mosan-Okunola', 'Onigbongbo',
-            'Oriade', 'Orile-Agege', 'Oto-Awori', 'Olorunda',
-            'Ojokoro', 'Yaba'
-        ].sort();
+        // LAWMA Official PSP Operators — loaded from external data
+        // PSP data is loaded via psp-data.js (446 operators, 57 LGAs, 492 assignments)
+        // Each entry: {n: "Name", a: [{l: "LGA", w: "Ward", t: "truck_count"}]}
+        // Falls back to empty array if script not loaded
+        if (typeof pspOperators === 'undefined') var pspOperators = [];
+        if (typeof lagosLGAs === 'undefined') var lagosLGAs = [];
 
         // Vehicle Makes
         const vehicleMakes = [
@@ -1039,20 +1055,32 @@
             });
         }
 
+        // Track whether PSP was selected from LAWMA list
+        let selectedFromList = false;
+        let selectedPspData = null;
+
         // Company Name Autocomplete
         function setupCompanyAutocomplete() {
             const input = document.getElementById('company-name');
             const dropdown = document.getElementById('company-dropdown');
 
-            function showList(operators) {
+            function showList(operators, maxShow) {
                 dropdown.innerHTML = '';
-                operators.forEach(op => {
+                const toShow = maxShow ? operators.slice(0, maxShow) : operators;
+                toShow.forEach(op => {
                     const div = document.createElement('div');
                     div.className = 'autocomplete-item';
-                    div.innerHTML = `<strong>${op.name}</strong><br><small>${op.lga}</small>`;
+                    const lgaList = op.a.map(a => a.l).filter((v,i,arr) => arr.indexOf(v) === i).join(', ');
+                    div.innerHTML = `<strong>${op.n}</strong><br><small>${lgaList} — ${op.a.length} ward${op.a.length > 1 ? 's' : ''}</small>`;
                     div.addEventListener('click', () => selectOperator(op));
                     dropdown.appendChild(div);
                 });
+                if (maxShow && operators.length > maxShow) {
+                    const moreDiv = document.createElement('div');
+                    moreDiv.className = 'autocomplete-item';
+                    moreDiv.innerHTML = `<small style="color:var(--text-light);">Type more to narrow ${operators.length - maxShow} more results...</small>`;
+                    dropdown.appendChild(moreDiv);
+                }
                 // Always add "Other" at the bottom
                 const otherDiv = document.createElement('div');
                 otherDiv.className = 'autocomplete-item';
@@ -1062,11 +1090,15 @@
                     input.value = '';
                     input.placeholder = 'Type your company name...';
                     input.focus();
-                    // Clear any pre-filled fields
+                    selectedFromList = false;
+                    selectedPspData = null;
+                    document.getElementById('ward-checklist-group').style.display = 'none';
+                    document.getElementById('manual-lga-ward').style.display = 'block';
                     document.getElementById('contact-person').value = '';
                     document.getElementById('phone-number').value = '';
                     document.getElementById('email-address').value = '';
                     document.getElementById('lga').value = '';
+                    document.getElementById('ward').value = '';
                 });
                 dropdown.appendChild(otherDiv);
                 dropdown.style.display = 'block';
@@ -1074,34 +1106,54 @@
 
             input.addEventListener('focus', function() {
                 if (input.value.length === 0) {
-                    showList(pspOperators);
+                    showList(pspOperators, 20);
                 }
             });
 
             input.addEventListener('click', function() {
                 if (dropdown.style.display === 'none') {
-                    showList(pspOperators);
+                    const val = input.value.toLowerCase();
+                    if (val.length === 0) {
+                        showList(pspOperators, 20);
+                    } else {
+                        const filtered = pspOperators.filter(op =>
+                            op.n.toLowerCase().includes(val) || op.a.some(a => a.l.toLowerCase().includes(val))
+                        );
+                        showList(filtered, 20);
+                    }
                 }
             });
 
             input.addEventListener('input', function() {
-                const val = input.value.toLowerCase();
+                selectedFromList = false;
+                selectedPspData = null;
+                document.getElementById('ward-checklist-group').style.display = 'none';
+                const val = input.value.toLowerCase().trim();
                 if (val.length === 0) {
-                    showList(pspOperators);
+                    showList(pspOperators, 20);
                     return;
                 }
                 const filtered = pspOperators.filter(op =>
-                    op.name.toLowerCase().includes(val) || op.lga.toLowerCase().includes(val)
+                    op.n.toLowerCase().includes(val) || op.a.some(a => a.l.toLowerCase().includes(val) || a.w.toLowerCase().includes(val))
                 );
                 if (filtered.length === 0) {
                     dropdown.innerHTML = '';
                     const noResult = document.createElement('div');
                     noResult.className = 'autocomplete-item';
-                    noResult.innerHTML = `<small>No matching company found — you can type your company name directly and fill in the details below</small>`;
+                    noResult.innerHTML = `<small>No matching company found — click below to enter your details manually</small>`;
                     dropdown.appendChild(noResult);
+                    const otherDiv = document.createElement('div');
+                    otherDiv.className = 'autocomplete-item';
+                    otherDiv.innerHTML = `<strong style="color: var(--lawma-green);">+ My company is not listed</strong><br><small>Enter details manually</small>`;
+                    otherDiv.addEventListener('click', () => {
+                        dropdown.style.display = 'none';
+                        selectedFromList = false;
+                        selectedPspData = null;
+                    });
+                    dropdown.appendChild(otherDiv);
                     dropdown.style.display = 'block';
                 } else {
-                    showList(filtered);
+                    showList(filtered, 20);
                 }
             });
 
@@ -1110,15 +1162,133 @@
                     dropdown.style.display = 'none';
                 }
             });
+
+            // (Ward checklist change handlers are added dynamically in selectOperator)
+        }
+
+        function updateWardChecklistSummary() {
+            const checked = document.querySelectorAll('#ward-checklist input[type="checkbox"]:checked');
+            const total = document.querySelectorAll('#ward-checklist input[type="checkbox"]');
+            const summary = document.getElementById('ward-checklist-summary');
+            const totalTrucks = Array.from(checked).reduce((sum, cb) => sum + (parseInt(cb.dataset.trucks) || 0), 0);
+            summary.textContent = `${checked.length} of ${total.length} ward${total.length > 1 ? 's' : ''} selected — ${totalTrucks} truck${totalTrucks !== 1 ? 's' : ''} expected`;
         }
 
         function selectOperator(op) {
-            document.getElementById('company-name').value = op.name;
+            document.getElementById('company-name').value = op.n;
             document.getElementById('company-dropdown').style.display = 'none';
-            document.getElementById('contact-person').value = op.contact;
-            document.getElementById('phone-number').value = op.phone;
-            document.getElementById('email-address').value = op.email;
-            document.getElementById('lga').value = op.lga;
+            selectedFromList = true;
+            selectedPspData = op;
+
+            // Hide manual LGA/ward fields — we use the checklist instead
+            document.getElementById('manual-lga-ward').style.display = 'none';
+
+            // Build ward checklist with checkboxes (all checked by default)
+            // Split comma-separated wards into individual checkboxes
+            const checklist = document.getElementById('ward-checklist');
+            checklist.innerHTML = '';
+            let cbIdx = 0;
+            op.a.forEach((a) => {
+                // Some CSV rows have multiple wards in one cell: "WARD A, WARD B, WARD C"
+                const wardNames = a.w.split(',').map(w => w.trim()).filter(w => w.length > 0);
+                wardNames.forEach(wardName => {
+                    const item = document.createElement('div');
+                    item.className = 'ward-check-item';
+                    item.innerHTML = `
+                        <input type="checkbox" id="ward-cb-${cbIdx}" checked data-lga="${a.l}" data-ward="${wardName}" data-trucks="${a.t}">
+                        <label class="ward-check-label" for="ward-cb-${cbIdx}">
+                            <strong>${wardName}</strong>
+                            <small>${a.l}${wardNames.length > 1 ? '' : ' — ' + a.t + ' truck' + (a.t !== '1' ? 's' : '')}</small>
+                        </label>
+                    `;
+                    checklist.appendChild(item);
+                    cbIdx++;
+                });
+            });
+
+            // Add change listeners for summary
+            checklist.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+                cb.addEventListener('change', updateWardChecklistSummary);
+            });
+
+            document.getElementById('ward-checklist-group').style.display = 'block';
+            updateWardChecklistSummary();
+            setupAddWardPanel();
+        }
+
+        // Add-ward panel logic
+        let addWardCounter = 1000; // high start to avoid ID collision with CSV wards
+        function setupAddWardPanel() {
+            const toggleBtn = document.getElementById('btn-add-ward');
+            const panel = document.getElementById('add-ward-panel');
+            const cancelBtn = document.getElementById('btn-add-ward-cancel');
+            const confirmBtn = document.getElementById('btn-add-ward-confirm');
+            const lgaSel = document.getElementById('add-ward-lga');
+            const wardInput = document.getElementById('add-ward-name');
+            const errEl = document.getElementById('add-ward-error');
+
+            // Populate LGA dropdown (from lagosLGAs array loaded via psp-data.js)
+            lgaSel.innerHTML = '<option value="">Select LGA...</option>';
+            if (typeof lagosLGAs !== 'undefined') {
+                lagosLGAs.forEach(l => {
+                    const opt = document.createElement('option');
+                    opt.value = l;
+                    opt.textContent = l;
+                    lgaSel.appendChild(opt);
+                });
+            }
+
+            toggleBtn.onclick = () => {
+                panel.style.display = 'block';
+                toggleBtn.style.display = 'none';
+            };
+            cancelBtn.onclick = () => {
+                panel.style.display = 'none';
+                toggleBtn.style.display = '';
+                lgaSel.value = '';
+                wardInput.value = '';
+                errEl.style.display = 'none';
+            };
+            confirmBtn.onclick = () => {
+                const lga = lgaSel.value;
+                const ward = wardInput.value.trim();
+                if (!lga) { errEl.textContent = 'Please select an LGA'; errEl.style.display = 'block'; return; }
+                if (!ward) { errEl.textContent = 'Please enter a ward name'; errEl.style.display = 'block'; return; }
+
+                // Check for duplicate
+                const existing = document.querySelectorAll('#ward-checklist input[type="checkbox"]');
+                for (const cb of existing) {
+                    if (cb.dataset.lga === lga && cb.dataset.ward.toUpperCase() === ward.toUpperCase()) {
+                        errEl.textContent = 'This LGA/Ward combination already exists in the list';
+                        errEl.style.display = 'block';
+                        return;
+                    }
+                }
+
+                // Add new checkbox to checklist
+                const checklist = document.getElementById('ward-checklist');
+                const idx = addWardCounter++;
+                const item = document.createElement('div');
+                item.className = 'ward-check-item';
+                item.style.background = 'rgba(0,107,63,0.06)';
+                item.innerHTML = `
+                    <input type="checkbox" id="ward-cb-${idx}" checked data-lga="${lga}" data-ward="${ward.toUpperCase()}" data-trucks="0">
+                    <label class="ward-check-label" for="ward-cb-${idx}">
+                        <strong>${ward.toUpperCase()}</strong>
+                        <small>${lga} — <em>added manually</em></small>
+                    </label>
+                `;
+                checklist.appendChild(item);
+                checklist.querySelector(`#ward-cb-${idx}`).addEventListener('change', updateWardChecklistSummary);
+                updateWardChecklistSummary();
+
+                // Reset panel
+                lgaSel.value = '';
+                wardInput.value = '';
+                errEl.style.display = 'none';
+                panel.style.display = 'none';
+                document.getElementById('btn-add-ward').style.display = '';
+            };
         }
 
         // Event Listeners
@@ -1129,14 +1299,46 @@
                 const contact = document.getElementById('contact-person').value.trim();
                 const phone = document.getElementById('phone-number').value.trim();
                 const email = document.getElementById('email-address').value.trim();
-                const lga = document.getElementById('lga').value;
 
-                if (!company || !contact || !phone || !email || !lga) {
-                    showError('error-step1', 'Please fill in all required fields (company name, contact person, phone, email, and LGA)');
+                if (!company) {
+                    showError('error-step1', 'Please select or enter your company name');
+                    return;
+                }
+                if (!contact || !phone || !email) {
+                    showError('error-step1', 'Please fill in contact person, phone number, and email address');
                     return;
                 }
 
-                state.operator = { company, contact, phone, email, lga, ward: document.getElementById('ward').value.trim() };
+                let lga, ward;
+
+                if (selectedFromList && selectedPspData) {
+                    // Collect checked wards from checklist
+                    const checked = document.querySelectorAll('#ward-checklist input[type="checkbox"]:checked');
+                    if (checked.length === 0) {
+                        showError('error-step1', 'Please select at least one ward assignment');
+                        return;
+                    }
+                    const assignments = Array.from(checked).map(cb => ({
+                        lga: cb.dataset.lga,
+                        ward: cb.dataset.ward,
+                        trucks: cb.dataset.trucks
+                    }));
+                    // Combine for storage — unique LGAs, all wards
+                    const lgas = [...new Set(assignments.map(a => a.lga))];
+                    lga = lgas.join(', ');
+                    ward = assignments.map(a => a.ward).join(', ');
+                    state.operator = { company, contact, phone, email, lga, ward, assignments };
+                } else {
+                    // Manual entry
+                    lga = document.getElementById('lga').value;
+                    ward = document.getElementById('ward').value.trim();
+                    if (!lga) {
+                        showError('error-step1', 'Please select your LGA');
+                        return;
+                    }
+                    state.operator = { company, contact, phone, email, lga, ward, assignments: [{ lga, ward, trucks: '0' }] };
+                }
+
                 goToStep(2);
             });
 
@@ -1220,10 +1422,15 @@
 
         function renderOperatorSummary(targetId) {
             const el = document.getElementById(targetId);
+            const wardDisplay = state.operator.assignments && state.operator.assignments.length > 1
+                ? state.operator.assignments.map(a => `${a.ward} (${a.lga})`).join(' &bull; ')
+                : state.operator.ward
+                    ? `${state.operator.ward} (${state.operator.lga})`
+                    : state.operator.lga;
             el.innerHTML = `
                 <h4>${state.operator.company}</h4>
                 <p>${state.operator.contact} &bull; ${state.operator.phone} &bull; ${state.operator.email}</p>
-                <p>LGA: <strong>${state.operator.lga}</strong>${state.operator.ward ? ' &bull; Ward: ' + state.operator.ward : ''}</p>
+                <p>Coverage: <strong>${wardDisplay}</strong></p>
             `;
         }
 
@@ -1560,16 +1767,35 @@
 
         // Submit
         async function submitRegistration() {
-            // Generate registration IDs
+            // Get next available WM number from Supabase
+            let nextNum = 1;
+            try {
+                const { data: maxRow } = await sb
+                    .from('trucks')
+                    .select('registration_id')
+                    .like('registration_id', 'WM-%')
+                    .order('registration_id', { ascending: false })
+                    .limit(1);
+                if (maxRow && maxRow.length > 0) {
+                    const lastNum = parseInt(maxRow[0].registration_id.replace('WM-', ''), 10);
+                    if (!isNaN(lastNum)) nextNum = lastNum + 1;
+                }
+            } catch (e) {
+                console.warn('Could not fetch last WM number, starting from WM-0001:', e);
+            }
+
+            // Generate sequential WM-XXXX IDs
+            const savedCount = state.trucks.filter(t => t._saved).length;
+            if (nextNum + savedCount - 1 > 9999) {
+                alert('Cannot register: WM ID limit (9999) would be exceeded. Please contact LAWMA administration.');
+                return;
+            }
             state.registrationIds = state.trucks.map((truck, idx) => {
-                const seq = String(idx + 1).padStart(4, '0');
-                const rand = Math.random().toString(36).substring(2, 6).toUpperCase();
-                return `LAWMA-PSP-${seq}-${rand}`;
+                return `WM-${String(nextNum + idx).padStart(4, '0')}`;
             });
 
-            // Generate operator-level registration ID
-            const opRand = Math.random().toString(36).substring(2, 8).toUpperCase();
-            const operatorRegId = `LAWMA-OP-${opRand}`;
+            // Operator-level ID uses the first truck's WM number as reference
+            const operatorRegId = `WM-OP-${String(nextNum).padStart(4, '0')}`;
 
             // Show a saving indicator
             const submitBtn = document.querySelector('#step-4 .btn-next');
@@ -1661,6 +1887,7 @@
                 <div class="detail-row"><span class="detail-label">Contact</span><span class="detail-value">${state.operator.contact}</span></div>
                 <div class="detail-row"><span class="detail-label">Phone</span><span class="detail-value">${state.operator.phone}</span></div>
                 <div class="detail-row"><span class="detail-label">LGA</span><span class="detail-value">${state.operator.lga}</span></div>
+                ${state.operator.ward ? `<div class="detail-row"><span class="detail-label">Ward(s)</span><span class="detail-value">${state.operator.ward}</span></div>` : ''}
                 <div class="detail-row"><span class="detail-label">Fleet Size</span><span class="detail-value">${state.fleetSize} truck(s)</span></div>
             `;
             container.appendChild(opCard);
@@ -1782,6 +2009,7 @@
                 <div class="card"><div class="card-t">PSP Operator</div>
                     <div class="row"><span class="row-l">Company</span><span class="row-v">${state.operator.company}</span></div>
                     <div class="row"><span class="row-l">LGA</span><span class="row-v">${state.operator.lga}</span></div>
+                    ${state.operator.ward ? `<div class="row"><span class="row-l">Ward(s)</span><span class="row-v">${state.operator.ward}</span></div>` : ''}
                     <div class="row"><span class="row-l">Contact</span><span class="row-v">${state.operator.contact}</span></div>
                     <div class="row"><span class="row-l">Phone</span><span class="row-v">${state.operator.phone}</span></div>
                 </div>
@@ -1836,7 +2064,7 @@
                         <tr><td><strong>Phone:</strong></td><td>${state.operator.phone}</td></tr>
                         <tr><td><strong>Email:</strong></td><td>${state.operator.email}</td></tr>
                         <tr><td><strong>LGA:</strong></td><td>${state.operator.lga}</td></tr>
-                        ${state.operator.ward ? `<tr><td><strong>Ward:</strong></td><td>${state.operator.ward}</td></tr>` : ''}
+                        ${state.operator.ward ? `<tr><td><strong>Ward(s):</strong></td><td>${state.operator.ward}</td></tr>` : ''}
                         <tr><td><strong>Fleet Size:</strong></td><td>${state.fleetSize} truck(s)</td></tr>
                     </table>
                 </div>`;
