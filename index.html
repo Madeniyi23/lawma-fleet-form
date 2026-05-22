@@ -1166,12 +1166,12 @@
             // (Ward checklist change handlers are added dynamically in selectOperator)
         }
 
+        var operatorTotalTrucks = 0; // total trucks from LAWMA records for selected operator
         function updateWardChecklistSummary() {
             const checked = document.querySelectorAll('#ward-checklist input[type="checkbox"]:checked');
             const total = document.querySelectorAll('#ward-checklist input[type="checkbox"]');
             const summary = document.getElementById('ward-checklist-summary');
-            const totalTrucks = Array.from(checked).reduce((sum, cb) => sum + (parseInt(cb.dataset.trucks) || 0), 0);
-            summary.textContent = `${checked.length} of ${total.length} ward${total.length > 1 ? 's' : ''} selected — ${totalTrucks} truck${totalTrucks !== 1 ? 's' : ''} expected`;
+            summary.textContent = `${checked.length} of ${total.length} ward${total.length > 1 ? 's' : ''} selected — ${operatorTotalTrucks} truck${operatorTotalTrucks !== 1 ? 's' : ''} on record`;
         }
 
         function selectOperator(op) {
@@ -1182,6 +1182,9 @@
 
             // Hide manual LGA/ward fields — we use the checklist instead
             document.getElementById('manual-lga-ward').style.display = 'none';
+
+            // Calculate total trucks from LAWMA records (sum across assignment rows, not split wards)
+            operatorTotalTrucks = op.a.reduce((sum, a) => sum + (parseInt(a.t) || 0), 0);
 
             // Build ward checklist with checkboxes (all checked by default)
             // Split comma-separated wards into individual checkboxes
