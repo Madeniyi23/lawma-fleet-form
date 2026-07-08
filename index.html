@@ -966,6 +966,7 @@
                     <thead>
                         <tr>
                             <th>#</th>
+                            <th>WM-ID</th>
                             <th>Reg / Chassis #</th>
                             <th>Make</th>
                             <th>Type</th>
@@ -1465,8 +1466,18 @@
             const content = document.createElement('div');
             content.className = 'truck-content';
 
-            // --- Registration Status ---
+            // --- WM-ID from QR Sticker ---
             content.innerHTML = `
+                <div class="section-label">QR Sticker ID</div>
+
+                <div class="form-group">
+                    <label for="wm-id" class="required">WM-ID from QR Sticker</label>
+                    <input type="text" id="wm-id" placeholder="e.g., WM-0001" value="${truck.wmId || ''}" style="text-transform:uppercase; font-weight:600; font-size:1.1rem; letter-spacing:1px; max-width:200px;">
+                    <small style="color:var(--text-light); display:block; margin-top:0.25rem;">Enter the WM-ID printed on the QR sticker assigned to this truck</small>
+                    <p id="wm-id-status" style="font-size:0.8rem; margin-top:0.25rem; display:none;"></p>
+                </div>
+
+                <hr class="section-divider">
                 <div class="section-label">Registration & Identification</div>
 
                 <div class="form-group">
@@ -1666,7 +1677,27 @@
         function saveTruckAndNext() {
             const idx = state.currentTruckIndex;
 
-            // Validate
+            // Validate WM-ID
+            const wmIdRaw = document.getElementById('wm-id').value.trim().toUpperCase();
+            if (!wmIdRaw) {
+                showError('error-step3', 'Please enter the WM-ID from the QR sticker');
+                return;
+            }
+            const wmIdMatch = wmIdRaw.match(/^WM-?(\d{1,4})$/);
+            if (!wmIdMatch) {
+                showError('error-step3', 'WM-ID must be in format WM-XXXX (e.g., WM-0001). Enter the ID exactly as printed on the QR sticker.');
+                return;
+            }
+            const wmId = 'WM-' + wmIdMatch[1].padStart(4, '0');
+
+            // Check for duplicate WM-ID within this session
+            const duplicate = state.trucks.find((t, i) => i !== idx && t.wmId === wmId && t._saved);
+            if (duplicate) {
+                showError('error-step3', `WM-ID ${wmId} is already assigned to another truck in this registration. Each truck must have a unique QR sticker.`);
+                return;
+            }
+
+            // Validate registration status
             const isRegistered = document.querySelector('input[name="is-registered"]:checked')?.value;
             if (!isRegistered) {
                 showError('error-step3', 'Please indicate if the vehicle is registered');
@@ -1710,6 +1741,7 @@
             // Save
             state.trucks[idx] = {
                 _saved: true,
+                wmId,
                 isRegistered,
                 registrationNumber: identifierType === 'reg' ? identifier : '',
                 chassisNumber: identifierType === 'chassis' ? identifier : '',
@@ -1753,6 +1785,7 @@
                 const row = document.createElement('tr');
                 row.innerHTML = `
                     <td>${idx + 1}</td>
+                    <td><strong style="color:#006B3F;">${truck.wmId || '—'}</strong></td>
                     <td>${id}</td>
                     <td>${make}</td>
                     <td>${type}</td>
@@ -1770,35 +1803,27 @@
 
         // Submit
         async function submitRegistration() {
-            // Get next available WM number from Supabase
-            let nextNum = 1;
+            // Use manually-entered WM-IDs from QR stickers
+            state.registrationIds = state.trucks.map(truck => truck.wmId);
+
+            // Check for duplicates in Supabase before saving
             try {
-                const { data: maxRow } = await sb
+                const { data: existing } = await sb
                     .from('trucks')
                     .select('registration_id')
-                    .like('registration_id', 'WM-%')
-                    .order('registration_id', { ascending: false })
-                    .limit(1);
-                if (maxRow && maxRow.length > 0) {
-                    const lastNum = parseInt(maxRow[0].registration_id.replace('WM-', ''), 10);
-                    if (!isNaN(lastNum)) nextNum = lastNum + 1;
+                    .in('registration_id', state.registrationIds);
+                if (existing && existing.length > 0) {
+                    const dupes = existing.map(e => e.registration_id).join(', ');
+                    alert('The following WM-IDs are already registered in the database: ' + dupes + '. Please check the QR stickers and correct any duplicates.');
+                    return;
                 }
             } catch (e) {
-                console.warn('Could not fetch last WM number, starting from WM-0001:', e);
+                console.warn('Could not check for duplicates (continuing):', e);
             }
-
-            // Generate sequential WM-XXXX IDs
-            const savedCount = state.trucks.filter(t => t._saved).length;
-            if (nextNum + savedCount - 1 > 9999) {
-                alert('Cannot register: WM ID limit (9999) would be exceeded. Please contact LAWMA administration.');
-                return;
-            }
-            state.registrationIds = state.trucks.map((truck, idx) => {
-                return `WM-${String(nextNum + idx).padStart(4, '0')}`;
-            });
 
             // Operator-level ID uses the first truck's WM number as reference
-            const operatorRegId = `WM-OP-${String(nextNum).padStart(4, '0')}`;
+            const firstNum = parseInt(state.registrationIds[0].replace('WM-', ''), 10) || 1;
+            const operatorRegId = `WM-OP-${String(firstNum).padStart(4, '0')}`;
 
             // Show a saving indicator
             const submitBtn = document.querySelector('#step-4 .btn-next');
