@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GreenTech Fleet Revalidation — LAWMA PSP Truck Registration</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
     <style>
         * {
@@ -838,9 +839,13 @@
                 <!-- WM-ID Entry / QR Scan -->
                 <div class="form-group" style="background: var(--bg-light); border: 2px solid var(--lawma-green); border-radius: 8px; padding: 1.25rem; margin-bottom: 1.5rem;">
                     <label for="wmid-input" class="required" style="font-size: 1.05rem; color: var(--lawma-green);">WM-ID (QR Sticker ID)</label>
-                    <div style="display: flex; gap: 0.75rem; align-items: flex-start;">
+                    <div style="display: flex; gap: 0.75rem; align-items: flex-start; flex-wrap: wrap;">
                         <input type="text" id="wmid-input" placeholder="e.g., WM-0001" style="text-transform:uppercase; font-weight:600; font-size:1.1rem; letter-spacing:1px; max-width:220px;" autocomplete="off">
                         <button type="button" id="btn-lookup-wmid" class="btn-primary btn-small" style="white-space:nowrap; margin-top:2px;">Look Up</button>
+                        <button type="button" id="btn-scan-qr" class="btn-secondary btn-small" style="white-space:nowrap; margin-top:2px; display:flex; align-items:center; gap:0.4rem;" onclick="openQrScanner()">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+                            Scan QR
+                        </button>
                     </div>
                     <small style="color:var(--text-light); display:block; margin-top:0.35rem;">Enter any WM-ID assigned to your company to auto-fill details below</small>
                     <p id="wmid-lookup-status" style="font-size:0.85rem; margin-top:0.5rem; display:none;"></p>
@@ -2214,6 +2219,88 @@
         }
 
         document.addEventListener('DOMContentLoaded', init);
+    </script>
+
+    <!-- QR Scanner Modal -->
+    <div id="qr-scanner-modal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; z-index:10000; background:rgba(0,0,0,0.7); justify-content:center; align-items:center;">
+        <div style="background:white; border-radius:12px; max-width:420px; width:92%; padding:1.5rem; position:relative; box-shadow:0 8px 32px rgba(0,0,0,0.3);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+                <h3 style="margin:0; font-size:1.1rem; color:var(--lawma-green);">Scan QR Code</h3>
+                <button type="button" onclick="closeQrScanner()" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:var(--text-light); padding:0.25rem;">&times;</button>
+            </div>
+            <p style="font-size:0.85rem; color:var(--text-light); margin-bottom:1rem;">Point your camera at the QR sticker on the truck.</p>
+            <div id="qr-reader" style="width:100%; border-radius:8px; overflow:hidden;"></div>
+            <p id="qr-scan-status" style="font-size:0.85rem; margin-top:0.75rem; text-align:center; color:var(--text-light);"></p>
+            <button type="button" onclick="closeQrScanner()" class="btn-secondary" style="width:100%; margin-top:0.75rem;">Cancel</button>
+        </div>
+    </div>
+
+    <script>
+        var html5QrScanner = null;
+
+        function openQrScanner() {
+            var modal = document.getElementById('qr-scanner-modal');
+            var statusEl = document.getElementById('qr-scan-status');
+            modal.style.display = 'flex';
+            statusEl.textContent = 'Starting camera...';
+
+            if (typeof Html5Qrcode === 'undefined') {
+                statusEl.textContent = 'QR scanner library not loaded. Please enter WM-ID manually.';
+                return;
+            }
+
+            html5QrScanner = new Html5Qrcode('qr-reader');
+
+            html5QrScanner.start(
+                { facingMode: 'environment' },
+                { fps: 10, qrbox: { width: 250, height: 250 } },
+                function(decodedText) {
+                    // Success — extract WM-ID from scanned text
+                    statusEl.style.color = 'var(--success-color)';
+                    statusEl.textContent = 'Scanned: ' + decodedText;
+
+                    // Try to extract WM-ID pattern from the scanned content
+                    var wmMatch = decodedText.match(/WM-?\d{1,4}/i);
+                    var wmId = wmMatch ? wmMatch[0].toUpperCase() : decodedText.trim().toUpperCase();
+
+                    // Set the input and trigger lookup
+                    document.getElementById('wmid-input').value = wmId;
+
+                    // Close scanner after brief delay so user sees the success
+                    setTimeout(function() {
+                        closeQrScanner();
+                        lookupWmId();
+                    }, 600);
+                },
+                function(errorMessage) {
+                    // Scan error (not a QR code in view) — ignore, keep scanning
+                }
+            ).catch(function(err) {
+                statusEl.style.color = 'var(--error-color)';
+                if (err && err.toString().indexOf('NotAllowedError') !== -1) {
+                    statusEl.textContent = 'Camera access denied. Please allow camera permission and try again.';
+                } else if (err && err.toString().indexOf('NotFoundError') !== -1) {
+                    statusEl.textContent = 'No camera found on this device. Please enter WM-ID manually.';
+                } else {
+                    statusEl.textContent = 'Could not start camera. Please enter WM-ID manually.';
+                }
+                console.log('QR scanner error:', err);
+            });
+        }
+
+        function closeQrScanner() {
+            var modal = document.getElementById('qr-scanner-modal');
+            if (html5QrScanner) {
+                html5QrScanner.stop().then(function() {
+                    html5QrScanner.clear();
+                    html5QrScanner = null;
+                }).catch(function() {
+                    html5QrScanner = null;
+                });
+            }
+            modal.style.display = 'none';
+            document.getElementById('qr-scan-status').textContent = '';
+        }
     </script>
 </body>
 </html>
