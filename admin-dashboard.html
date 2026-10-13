@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LAWMA Fleet Revalidation — Management Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <style>
+        :root {
+            --green: #165f24;
+            --green-light: #1e7a30;
+            --green-dark: #0f4a1b;
+            --red: #b7320e;
+            --red-light: #d4461a;
+            --text-dark: #2C3E50;
+            --text-light: #5D6D7B;
+            --bg: #f4f6f5;
+            --white: #fff;
+            --border: #D5DBDD;
+            --yellow: #F39C12;
+        }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text-dark); }
+
+        /* Header */
+        .header {
+            background: var(--white);
+            border-bottom: 3px solid var(--green);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+        .header-left { display: flex; align-items: center; gap: 1rem; }
+        .header-left img { height: 36px; }
+        .header-left h1 { font-size: 1.3rem; color: var(--green); }
+        .header-left h1 span { font-weight: 400; color: var(--text-light); font-size: 0.85rem; display: block; }
+        .header-right { display: flex; align-items: center; gap: 1rem; font-size: 0.85rem; color: var(--text-light); }
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+        .status-dot.live { background: var(--green-light); animation: pulse 2s infinite; }
+        .status-dot.error { background: var(--red); }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+        .btn-refresh {
+            background: var(--green); color: white; border: none; padding: 0.5rem 1rem;
+            border-radius: 6px; cursor: pointer; font-size: 0.85rem; display: flex; align-items: center; gap: 0.4rem;
+        }
+        .btn-refresh:hover { background: var(--green-dark); }
+
+        /* KPI Cards */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            padding: 1.5rem 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        .kpi-card {
+            background: var(--white);
+            border-radius: 10px;
+            padding: 1.25rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            border-left: 4px solid var(--green);
+        }
+        .kpi-card.accent { border-left-color: var(--red); }
+        .kpi-card.warn { border-left-color: var(--yellow); }
+        .kpi-label { font-size: 0.8rem; color: var(--text-light); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.5rem; }
+        .kpi-value { font-size: 2rem; font-weight: 700; color: var(--text-dark); line-height: 1.1; }
+        .kpi-sub { font-size: 0.8rem; color: var(--text-light); margin-top: 0.35rem; }
+        .kpi-bar { height: 6px; background: #e8eceb; border-radius: 3px; margin-top: 0.75rem; overflow: hidden; }
+        .kpi-bar-fill { height: 100%; border-radius: 3px; transition: width 0.8s ease; }
+        .kpi-bar-fill.green { background: var(--green-light); }
+        .kpi-bar-fill.red { background: var(--red); }
+
+        /* Filters */
+        .filters {
+            padding: 0 2rem;
+            max-width: 1400px;
+            margin: 0 auto 1rem;
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .filters label { font-size: 0.85rem; font-weight: 600; color: var(--text-light); }
+        .filters select, .filters input {
+            padding: 0.4rem 0.75rem;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 0.85rem;
+            background: white;
+        }
+        .filters input[type="text"] { width: 220px; }
+
+        /* Table */
+        .table-wrapper {
+            padding: 0 2rem 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        .table-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.75rem;
+        }
+        .table-header h2 { font-size: 1.1rem; color: var(--green); }
+        .table-header .count { font-size: 0.85rem; color: var(--text-light); }
+        .table-container {
+            background: var(--white);
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            overflow-x: auto;
+        }
+        table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        thead th {
+            background: #f8faf9;
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-weight: 600;
+            color: var(--text-light);
+            border-bottom: 2px solid var(--border);
+            white-space: nowrap;
+            cursor: pointer;
+            user-select: none;
+        }
+        thead th:hover { color: var(--green); }
+        thead th .sort-arrow { font-size: 0.7rem; margin-left: 0.3rem; }
+        tbody tr { border-bottom: 1px solid #f0f2f1; transition: background 0.15s; }
+        tbody tr:hover { background: #f8faf9; }
+        tbody td { padding: 0.65rem 1rem; }
+        .badge {
+            display: inline-block;
+            padding: 0.15rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .badge-green { background: #e6f4ea; color: var(--green); }
+        .badge-red { background: #fce8e6; color: var(--red); }
+        .badge-yellow { background: #fef7e0; color: #b8860b; }
+        .badge-gray { background: #f0f2f1; color: var(--text-light); }
+        .wm-id { font-weight: 700; color: var(--green); letter-spacing: 0.5px; }
+        .empty-state { text-align: center; padding: 3rem; color: var(--text-light); }
+
+        /* Pagination */
+        .pagination {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 1rem;
+            border-top: 1px solid var(--border);
+            font-size: 0.85rem;
+            color: var(--text-light);
+        }
+        .pagination button {
+            padding: 0.35rem 0.75rem;
+            border: 1px solid var(--border);
+            background: white;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+        .pagination button:disabled { opacity: 0.4; cursor: default; }
+        .pagination button:not(:disabled):hover { background: #f8faf9; }
+
+        /* Loading */
+        .loading { text-align: center; padding: 2rem; color: var(--text-light); }
+        .spinner { display: inline-block; width: 24px; height: 24px; border: 3px solid var(--border); border-top-color: var(--green); border-radius: 50%; animation: spin 0.8s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* LGA breakdown */
+        .lga-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1rem;
+            padding: 0 2rem 1.5rem;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        .lga-card {
+            background: var(--white);
+            border-radius: 10px;
+            padding: 1rem 1.25rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        }
+        .lga-card h3 { font-size: 0.9rem; color: var(--green); margin-bottom: 0.5rem; }
+        .lga-row { display: flex; justify-content: space-between; padding: 0.25rem 0; font-size: 0.8rem; border-bottom: 1px solid #f0f2f1; }
+        .lga-row:last-child { border: none; }
+
+        .section-title {
+            padding: 0 2rem;
+            max-width: 1400px;
+            margin: 0 auto 0.75rem;
+            font-size: 1.1rem;
+            color: var(--green);
+        }
+
+        @media (max-width: 768px) {
+            .kpi-grid { grid-template-columns: repeat(2, 1fr); padding: 1rem; }
+            .filters, .table-wrapper, .lga-grid { padding-left: 1rem; padding-right: 1rem; }
+            .header { padding: 1rem; }
+        }
+        @media (max-width: 480px) {
+            .kpi-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <div class="header-left">
+            <img src="data:image/png;base64,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" alt="GreenTech">
+            <h1>Fleet Revalidation Dashboard <span>LAWMA Management View</span></h1>
+        </div>
+        <div class="header-right">
+            <span id="connection-status"><span class="status-dot"></span> Connecting...</span>
+            <span id="last-updated"></span>
+            <button class="btn-refresh" onclick="loadDashboard()">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                Refresh
+            </button>
+        </div>
+    </div>
+
+    <!-- KPI Cards -->
+    <div class="kpi-grid" id="kpi-grid">
+        <div class="kpi-card"><div class="loading"><div class="spinner"></div><br>Loading data...</div></div>
+    </div>
+
+    <!-- LGA Breakdown -->
+    <h2 class="section-title" id="lga-section-title" style="display:none;">Registration by LGA</h2>
+    <div class="lga-grid" id="lga-grid"></div>
+
+    <!-- Filters -->
+    <div class="filters" id="filters-bar" style="display:none;">
+        <label>Filter:</label>
+        <select id="filter-lga" onchange="applyFilters()">
+            <option value="">All LGAs</option>
+        </select>
+        <select id="filter-status" onchange="applyFilters()">
+            <option value="">All Status</option>
+            <option value="active">Active</option>
+            <option value="grounded">Grounded</option>
+        </select>
+        <select id="filter-registered" onchange="applyFilters()">
+            <option value="">Registered & Unregistered</option>
+            <option value="true">Registered Only</option>
+            <option value="false">Unregistered Only</option>
+        </select>
+        <input type="text" id="filter-search" placeholder="Search WM-ID, company, plate..." oninput="applyFilters()">
+    </div>
+
+    <!-- Truck Table -->
+    <div class="table-wrapper" id="table-section" style="display:none;">
+        <div class="table-header">
+            <h2>Registered Trucks</h2>
+            <span class="count" id="table-count"></span>
+        </div>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th onclick="sortTable('registration_id')">WM-ID <span class="sort-arrow" id="sort-registration_id"></span></th>
+                        <th onclick="sortTable('company_name')">PSP Operator <span class="sort-arrow" id="sort-company_name"></span></th>
+                        <th onclick="sortTable('lga')">LGA <span class="sort-arrow" id="sort-lga"></span></th>
+                        <th onclick="sortTable('vehicle_reg_number')">License Plate <span class="sort-arrow" id="sort-vehicle_reg_number"></span></th>
+                        <th onclick="sortTable('make')">Make <span class="sort-arrow" id="sort-make"></span></th>
+                        <th onclick="sortTable('vehicle_type')">Type <span class="sort-arrow" id="sort-vehicle_type"></span></th>
+                        <th onclick="sortTable('operational_status')">Status <span class="sort-arrow" id="sort-operational_status"></span></th>
+                        <th onclick="sortTable('is_registered')">Registered <span class="sort-arrow" id="sort-is_registered"></span></th>
+                        <th onclick="sortTable('insurance_type')">Insurance <span class="sort-arrow" id="sort-insurance_type"></span></th>
+                        <th onclick="sortTable('created_at')">Date <span class="sort-arrow" id="sort-created_at"></span></th>
+                    </tr>
+                </thead>
+                <tbody id="truck-tbody"></tbody>
+            </table>
+            <div class="pagination" id="pagination">
+                <span id="page-info"></span>
+                <div>
+                    <button onclick="changePage(-1)" id="btn-prev">Previous</button>
+                    <button onclick="changePage(1)" id="btn-next">Next</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://iabunyskxepqfussvpwd.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_pVMZnYSkWFnrFWGbKeWBHg_0YiicplF';
+        const TOTAL_WMIDS = 995;
+        const TOTAL_PSPS = 433;
+
+        let sb;
+        let allTrucks = [];
+        let allOperators = [];
+        let filteredTrucks = [];
+        let currentPage = 1;
+        const PAGE_SIZE = 25;
+        let sortCol = 'created_at';
+        let sortDir = 'desc';
+
+        async function loadDashboard() {
+            try {
+                if (!sb) {
+                    sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                }
+
+                // Fetch operators
+                const { data: ops, error: opsErr } = await sb.from('psp_operators').select('*');
+                if (opsErr) throw opsErr;
+                allOperators = ops || [];
+
+                // Fetch trucks
+                const { data: trucks, error: truckErr } = await sb.from('trucks').select('*, psp_operators(company_name, lga, ward, fleet_size)');
+                if (truckErr) throw truckErr;
+                allTrucks = (trucks || []).map(t => ({
+                    ...t,
+                    company_name: t.psp_operators ? t.psp_operators.company_name : '—',
+                    lga: t.psp_operators ? t.psp_operators.lga : '—',
+                    ward: t.psp_operators ? t.psp_operators.ward : '—'
+                }));
+
+                updateConnectionStatus(true);
+                renderKPIs();
+                renderLGABreakdown();
+                populateFilters();
+                applyFilters();
+
+                document.getElementById('filters-bar').style.display = 'flex';
+                document.getElementById('table-section').style.display = 'block';
+                document.getElementById('lga-section-title').style.display = 'block';
+                document.getElementById('last-updated').textContent = 'Updated: ' + new Date().toLocaleTimeString();
+
+            } catch (err) {
+                console.error('Dashboard load error:', err);
+                updateConnectionStatus(false, err.message);
+                document.getElementById('kpi-grid').innerHTML = `
+                    <div class="kpi-card" style="grid-column: 1/-1;">
+                        <div class="empty-state">
+                            <strong>Could not connect to database</strong><br>
+                            ${err.message || 'Connection error'}<br><br>
+                            Make sure Supabase is active and try again.
+                        </div>
+                    </div>`;
+            }
+        }
+
+        function updateConnectionStatus(ok, msg) {
+            const el = document.getElementById('connection-status');
+            if (ok) {
+                el.innerHTML = '<span class="status-dot live"></span> Live';
+            } else {
+                el.innerHTML = '<span class="status-dot error"></span> ' + (msg || 'Disconnected');
+            }
+        }
+
+        function renderKPIs() {
+            const totalCaptured = allTrucks.length;
+            const pctCaptured = TOTAL_WMIDS > 0 ? (totalCaptured / TOTAL_WMIDS * 100).toFixed(1) : 0;
+            const pspsCaptured = new Set(allTrucks.map(t => t.operator_id)).size;
+            const pctPsps = TOTAL_PSPS > 0 ? (pspsCaptured / TOTAL_PSPS * 100).toFixed(1) : 0;
+
+            // Completion metrics
+            const withPlate = allTrucks.filter(t => t.vehicle_reg_number).length;
+            const withMake = allTrucks.filter(t => t.make).length;
+            const withInsurance = allTrucks.filter(t => t.insurance_type && t.insurance_type !== 'None').length;
+            const registered = allTrucks.filter(t => t.is_registered).length;
+            const active = allTrucks.filter(t => t.operational_status && t.operational_status.toLowerCase().includes('active')).length;
+            const grounded = allTrucks.filter(t => t.operational_status && t.operational_status.toLowerCase().includes('grounded')).length;
+
+            // Info completeness: % of fields filled across all trucks
+            const fields = ['vehicle_reg_number', 'make', 'vehicle_type', 'operational_status', 'insurance_type'];
+            let filledCount = 0;
+            let totalFields = allTrucks.length * fields.length;
+            allTrucks.forEach(t => {
+                fields.forEach(f => { if (t[f]) filledCount++; });
+            });
+            const completeness = totalFields > 0 ? (filledCount / totalFields * 100).toFixed(1) : 0;
+
+            // Today's registrations
+            const today = new Date().toISOString().split('T')[0];
+            const todayCount = allTrucks.filter(t => t.created_at && t.created_at.startsWith(today)).length;
+
+            // Unique LGAs
+            const lgaSet = new Set(allTrucks.map(t => t.lga).filter(Boolean));
+
+            document.getElementById('kpi-grid').innerHTML = `
+                <div class="kpi-card">
+                    <div class="kpi-label">Trucks Captured</div>
+                    <div class="kpi-value">${totalCaptured} <span style="font-size:1rem;color:var(--text-light);">/ ${TOTAL_WMIDS}</span></div>
+                    <div class="kpi-sub">${pctCaptured}% of total fleet</div>
+                    <div class="kpi-bar"><div class="kpi-bar-fill green" style="width:${pctCaptured}%"></div></div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-label">PSP Operators Registered</div>
+                    <div class="kpi-value">${pspsCaptured} <span style="font-size:1rem;color:var(--text-light);">/ ${TOTAL_PSPS}</span></div>
+                    <div class="kpi-sub">${pctPsps}% of operators</div>
+                    <div class="kpi-bar"><div class="kpi-bar-fill green" style="width:${pctPsps}%"></div></div>
+                </div>
+                <div class="kpi-card accent">
+                    <div class="kpi-label">Info Completeness</div>
+                    <div class="kpi-value">${completeness}%</div>
+                    <div class="kpi-sub">${filledCount} of ${totalFields} fields filled</div>
+                    <div class="kpi-bar"><div class="kpi-bar-fill ${completeness >= 70 ? 'green' : 'red'}" style="width:${completeness}%"></div></div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-label">Registered Vehicles</div>
+                    <div class="kpi-value">${registered}</div>
+                    <div class="kpi-sub">${totalCaptured > 0 ? (registered/totalCaptured*100).toFixed(0) : 0}% have license plates</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-label">Active Trucks</div>
+                    <div class="kpi-value" style="color:var(--green);">${active}</div>
+                    <div class="kpi-sub">${grounded > 0 ? grounded + ' grounded' : 'None grounded'}</div>
+                </div>
+                <div class="kpi-card warn">
+                    <div class="kpi-label">Insured Trucks</div>
+                    <div class="kpi-value">${withInsurance}</div>
+                    <div class="kpi-sub">${totalCaptured > 0 ? (withInsurance/totalCaptured*100).toFixed(0) : 0}% insured</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-label">Today's Registrations</div>
+                    <div class="kpi-value">${todayCount}</div>
+                    <div class="kpi-sub">${new Date().toLocaleDateString('en-NG', {weekday:'long', month:'short', day:'numeric'})}</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-label">LGAs Covered</div>
+                    <div class="kpi-value">${lgaSet.size}</div>
+                    <div class="kpi-sub">out of 56 Lagos LGAs</div>
+                </div>
+            `;
+        }
+
+        function renderLGABreakdown() {
+            const lgaMap = {};
+            allTrucks.forEach(t => {
+                const lga = t.lga || 'Unknown';
+                if (!lgaMap[lga]) lgaMap[lga] = { total: 0, active: 0, grounded: 0, registered: 0 };
+                lgaMap[lga].total++;
+                if (t.operational_status && t.operational_status.toLowerCase().includes('active')) lgaMap[lga].active++;
+                if (t.operational_status && t.operational_status.toLowerCase().includes('grounded')) lgaMap[lga].grounded++;
+                if (t.is_registered) lgaMap[lga].registered++;
+            });
+
+            const sorted = Object.entries(lgaMap).sort((a, b) => b[1].total - a[1].total);
+            const grid = document.getElementById('lga-grid');
+
+            if (sorted.length === 0) {
+                grid.innerHTML = '';
+                return;
+            }
+
+            grid.innerHTML = sorted.map(([lga, d]) => `
+                <div class="lga-card">
+                    <h3>${lga}</h3>
+                    <div class="lga-row"><span>Total trucks</span><strong>${d.total}</strong></div>
+                    <div class="lga-row"><span>Active</span><span class="badge badge-green">${d.active}</span></div>
+                    <div class="lga-row"><span>Grounded</span><span class="badge ${d.grounded > 0 ? 'badge-red' : 'badge-gray'}">${d.grounded}</span></div>
+                    <div class="lga-row"><span>Registered</span><span>${d.registered}</span></div>
+                </div>
+            `).join('');
+        }
+
+        function populateFilters() {
+            const lgaSelect = document.getElementById('filter-lga');
+            const lgas = [...new Set(allTrucks.map(t => t.lga).filter(Boolean))].sort();
+            lgaSelect.innerHTML = '<option value="">All LGAs</option>' + lgas.map(l => `<option value="${l}">${l}</option>`).join('');
+        }
+
+        function applyFilters() {
+            const lga = document.getElementById('filter-lga').value;
+            const status = document.getElementById('filter-status').value;
+            const registered = document.getElementById('filter-registered').value;
+            const search = document.getElementById('filter-search').value.toLowerCase().trim();
+
+            filteredTrucks = allTrucks.filter(t => {
+                if (lga && t.lga !== lga) return false;
+                if (status === 'active' && !(t.operational_status && t.operational_status.toLowerCase().includes('active'))) return false;
+                if (status === 'grounded' && !(t.operational_status && t.operational_status.toLowerCase().includes('grounded'))) return false;
+                if (registered === 'true' && !t.is_registered) return false;
+                if (registered === 'false' && t.is_registered) return false;
+                if (search) {
+                    const haystack = [t.registration_id, t.company_name, t.vehicle_reg_number, t.make, t.lga, t.chassis_number].filter(Boolean).join(' ').toLowerCase();
+                    if (!haystack.includes(search)) return false;
+                }
+                return true;
+            });
+
+            doSort();
+            currentPage = 1;
+            renderTable();
+        }
+
+        function doSort() {
+            filteredTrucks.sort((a, b) => {
+                let va = a[sortCol] || '';
+                let vb = b[sortCol] || '';
+                if (typeof va === 'boolean') { va = va ? 1 : 0; vb = vb ? 1 : 0; }
+                if (typeof va === 'string') { va = va.toLowerCase(); vb = vb.toLowerCase(); }
+                if (va < vb) return sortDir === 'asc' ? -1 : 1;
+                if (va > vb) return sortDir === 'asc' ? 1 : -1;
+                return 0;
+            });
+
+            // Update sort arrows
+            document.querySelectorAll('.sort-arrow').forEach(el => el.textContent = '');
+            const arrow = document.getElementById('sort-' + sortCol);
+            if (arrow) arrow.textContent = sortDir === 'asc' ? ' ▲' : ' ▼';
+        }
+
+        function sortTable(col) {
+            if (sortCol === col) {
+                sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+            } else {
+                sortCol = col;
+                sortDir = 'asc';
+            }
+            doSort();
+            renderTable();
+        }
+
+        function renderTable() {
+            const tbody = document.getElementById('truck-tbody');
+            const start = (currentPage - 1) * PAGE_SIZE;
+            const pageData = filteredTrucks.slice(start, start + PAGE_SIZE);
+            const totalPages = Math.ceil(filteredTrucks.length / PAGE_SIZE) || 1;
+
+            document.getElementById('table-count').textContent = `${filteredTrucks.length} truck${filteredTrucks.length !== 1 ? 's' : ''} found`;
+
+            if (pageData.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="10" class="empty-state">No trucks found matching your filters.</td></tr>';
+            } else {
+                tbody.innerHTML = pageData.map(t => {
+                    const statusBadge = t.operational_status
+                        ? (t.operational_status.toLowerCase().includes('active')
+                            ? '<span class="badge badge-green">Active</span>'
+                            : '<span class="badge badge-red">Grounded</span>')
+                        : '<span class="badge badge-gray">—</span>';
+                    const regBadge = t.is_registered
+                        ? '<span class="badge badge-green">Yes</span>'
+                        : '<span class="badge badge-yellow">No</span>';
+                    const insuranceBadge = t.insurance_type
+                        ? (t.insurance_type === 'None'
+                            ? '<span class="badge badge-red">None</span>'
+                            : `<span class="badge badge-green">${t.insurance_type}</span>`)
+                        : '<span class="badge badge-gray">—</span>';
+                    const date = t.created_at ? new Date(t.created_at).toLocaleDateString('en-NG', {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'}) : '—';
+
+                    return `<tr>
+                        <td class="wm-id">${t.registration_id || '—'}</td>
+                        <td>${t.company_name || '—'}</td>
+                        <td>${t.lga || '—'}</td>
+                        <td>${t.vehicle_reg_number || '<span style="color:#ccc">—</span>'}</td>
+                        <td>${t.make || '—'}</td>
+                        <td>${t.vehicle_type || '—'}</td>
+                        <td>${statusBadge}</td>
+                        <td>${regBadge}</td>
+                        <td>${insuranceBadge}</td>
+                        <td style="white-space:nowrap">${date}</td>
+                    </tr>`;
+                }).join('');
+            }
+
+            document.getElementById('page-info').textContent = `Page ${currentPage} of ${totalPages}`;
+            document.getElementById('btn-prev').disabled = currentPage <= 1;
+            document.getElementById('btn-next').disabled = currentPage >= totalPages;
+        }
+
+        function changePage(delta) {
+            const totalPages = Math.ceil(filteredTrucks.length / PAGE_SIZE) || 1;
+            currentPage = Math.max(1, Math.min(totalPages, currentPage + delta));
+            renderTable();
+        }
+
+        // Auto-refresh every 30 seconds
+        setInterval(loadDashboard, 30000);
+
+        // Initial load
+        loadDashboard();
+    </script>
+</body>
+</html>
